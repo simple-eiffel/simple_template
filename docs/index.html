@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_template - Mustache Template Engine for Eiffel</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="images/logo.png" alt="simple_* logo" class="logo">
+        </div>
+        <h1>simple_template</h1>
+        <p class="tagline">Mustache Template Engine for Eiffel</p>
+        <div class="badges">
+            <span class="badge badge-rfc">Mustache</span>
+            <span class="badge badge-version">v1.0.0</span>
+            <span class="badge badge-license">MIT</span>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#quick-start">Quick Start</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#api-summary">API Reference</a></li>
+            <li><a href="https://github.com/ljr1981/simple_template">GitHub</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>
+                <strong>simple_template</strong> is a Mustache-style template engine for Eiffel.
+                It provides logic-less templates with automatic HTML escaping to prevent XSS attacks,
+                sections for conditionals and loops, and partial template support.
+            </p>
+            <p>
+                Part of the <strong>simple_*</strong> ecosystem of focused, single-purpose Eiffel libraries.
+            </p>
+        </section>
+
+        <section id="quick-start">
+            <h2>Quick Start</h2>
+
+            <div class="quick-start">
+                <h3>Installation</h3>
+                <p>Add to your ECF file:</p>
+<pre><code>&lt;library name="simple_template" location="$SIMPLE_TEMPLATE/simple_template.ecf"/&gt;</code></pre>
+                <p>Set environment variable:</p>
+<pre><code>set SIMPLE_TEMPLATE=D:\path\to\simple_template</code></pre>
+            </div>
+
+            <h3>Basic Variable Substitution</h3>
+<pre><code><span class="keyword">local</span>
+    tpl: <span class="type">SIMPLE_TEMPLATE</span>
+<span class="keyword">do</span>
+    <span class="keyword">create</span> tpl.make_from_string (<span class="string">"Hello, {{name}}!"</span>)
+    tpl.set_variable (<span class="string">"name"</span>, <span class="string">"World"</span>)
+    print (tpl.render)  <span class="comment">-- "Hello, World!"</span>
+<span class="keyword">end</span></code></pre>
+
+            <h3>HTML Escaping (Default)</h3>
+<pre><code><span class="comment">-- Automatic XSS prevention</span>
+tpl.set_variable (<span class="string">"content"</span>, <span class="string">"&lt;script&gt;alert('xss')&lt;/script&gt;"</span>)
+print (tpl.render)  <span class="comment">-- "&amp;lt;script&amp;gt;alert(&amp;#39;xss&amp;#39;)&amp;lt;/script&amp;gt;"</span></code></pre>
+
+            <h3>Raw/Unescaped Output</h3>
+<pre><code><span class="comment">-- Triple braces for raw HTML</span>
+<span class="keyword">create</span> tpl.make_from_string (<span class="string">"{{{html}}}"</span>)
+tpl.set_variable (<span class="string">"html"</span>, <span class="string">"&lt;b&gt;Bold&lt;/b&gt;"</span>)
+print (tpl.render)  <span class="comment">-- "&lt;b&gt;Bold&lt;/b&gt;"</span></code></pre>
+
+            <h3>Conditional Sections</h3>
+<pre><code><span class="comment">-- Show section when truthy</span>
+<span class="keyword">create</span> tpl.make_from_string (<span class="string">"{{#logged_in}}Welcome back!{{/logged_in}}"</span>)
+tpl.set_section (<span class="string">"logged_in"</span>, True)
+print (tpl.render)  <span class="comment">-- "Welcome back!"</span>
+
+<span class="comment">-- Inverted section (show when falsy)</span>
+<span class="keyword">create</span> tpl.make_from_string (<span class="string">"{{^has_items}}No items{{/has_items}}"</span>)
+tpl.set_section (<span class="string">"has_items"</span>, False)
+print (tpl.render)  <span class="comment">-- "No items"</span></code></pre>
+
+            <h3>List Iteration</h3>
+<pre><code><span class="keyword">local</span>
+    items: <span class="type">ARRAYED_LIST</span> [<span class="type">HASH_TABLE</span> [<span class="type">STRING</span>, <span class="type">STRING</span>]]
+    item: <span class="type">HASH_TABLE</span> [<span class="type">STRING</span>, <span class="type">STRING</span>]
+<span class="keyword">do</span>
+    <span class="keyword">create</span> tpl.make_from_string (<span class="string">"{{#users}}{{name}} {{/users}}"</span>)
+
+    <span class="keyword">create</span> items.make (2)
+    <span class="keyword">create</span> item.make (1)
+    item.put (<span class="string">"Alice"</span>, <span class="string">"name"</span>)
+    items.extend (item)
+    <span class="keyword">create</span> item.make (1)
+    item.put (<span class="string">"Bob"</span>, <span class="string">"name"</span>)
+    items.extend (item)
+
+    tpl.set_list (<span class="string">"users"</span>, items)
+    print (tpl.render)  <span class="comment">-- "Alice Bob "</span>
+<span class="keyword">end</span></code></pre>
+
+            <h3>Comments</h3>
+<pre><code><span class="comment">-- Comments are not rendered</span>
+<span class="keyword">create</span> tpl.make_from_string (<span class="string">"Hello{{! This is ignored }}World"</span>)
+print (tpl.render)  <span class="comment">-- "HelloWorld"</span></code></pre>
+
+            <h3>Partials</h3>
+<pre><code><span class="keyword">local</span>
+    tpl, header: <span class="type">SIMPLE_TEMPLATE</span>
+<span class="keyword">do</span>
+    <span class="keyword">create</span> header.make_from_string (<span class="string">"&lt;h1&gt;{{title}}&lt;/h1&gt;"</span>)
+    <span class="keyword">create</span> tpl.make_from_string (<span class="string">"{{&gt;header}}&lt;main&gt;Content&lt;/main&gt;"</span>)
+    tpl.register_partial (<span class="string">"header"</span>, header)
+    tpl.set_variable (<span class="string">"title"</span>, <span class="string">"My Page"</span>)
+    print (tpl.render)
+<span class="keyword">end</span></code></pre>
+        </section>
+
+        <section id="syntax">
+            <h2>Template Syntax</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Syntax</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{variable}}</code></td>
+                        <td>Output variable (HTML escaped)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{{variable}}}</code></td>
+                        <td>Output variable (raw, no escaping)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{#section}}...{{/section}}</code></td>
+                        <td>Conditional section (show if truthy) or list iteration</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{^section}}...{{/section}}</code></td>
+                        <td>Inverted section (show if falsy)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{! comment }}</code></td>
+                        <td>Comment (not rendered)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{>partial}}</code></td>
+                        <td>Include partial template</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="features">
+            <h2>Features</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Mustache Syntax</h4>
+                    <p>Standard Mustache template syntax compatible with other implementations.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Auto HTML Escaping</h4>
+                    <p>XSS prevention by default. Use triple braces for raw output.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Sections</h4>
+                    <p>Conditional rendering with truthy/falsy evaluation.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Inverted Sections</h4>
+                    <p>Show content only when value is false or missing.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>List Iteration</h4>
+                    <p>Repeat sections for each item in a list.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Partials</h4>
+                    <p>Include reusable sub-templates.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Comments</h4>
+                    <p>Template documentation that doesn't appear in output.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Design by Contract</h4>
+                    <p>Full preconditions, postconditions, and class invariants.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="api-summary">
+            <h2>API Summary</h2>
+
+            <h3>Initialization</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>make</code></td>
+                        <td>Create empty template</td>
+                    </tr>
+                    <tr>
+                        <td><code>make_from_string (template)</code></td>
+                        <td>Create from string</td>
+                    </tr>
+                    <tr>
+                        <td><code>make_from_file (path)</code></td>
+                        <td>Load from file</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Configuration</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>set_escape_html (enabled)</code></td>
+                        <td>Enable/disable HTML escaping</td>
+                    </tr>
+                    <tr>
+                        <td><code>set_missing_variable_policy (policy)</code></td>
+                        <td>Set behavior for missing variables</td>
+                    </tr>
+                    <tr>
+                        <td><code>register_partial (name, template)</code></td>
+                        <td>Register a partial template</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Context Building</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>set_variable (name, value)</code></td>
+                        <td>Set a variable</td>
+                    </tr>
+                    <tr>
+                        <td><code>set_variables (table)</code></td>
+                        <td>Set multiple variables</td>
+                    </tr>
+                    <tr>
+                        <td><code>set_section (name, visible)</code></td>
+                        <td>Set section visibility</td>
+                    </tr>
+                    <tr>
+                        <td><code>set_list (name, items)</code></td>
+                        <td>Set list for iteration</td>
+                    </tr>
+                    <tr>
+                        <td><code>clear_variables</code></td>
+                        <td>Clear all context</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Rendering</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>render: STRING</code></td>
+                        <td>Render template to string</td>
+                    </tr>
+                    <tr>
+                        <td><code>render_to_file (path)</code></td>
+                        <td>Render and write to file</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Query</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>has_variable (name): BOOLEAN</code></td>
+                        <td>Is variable defined?</td>
+                    </tr>
+                    <tr>
+                        <td><code>required_variables: LIST</code></td>
+                        <td>Extract variable names from template</td>
+                    </tr>
+                    <tr>
+                        <td><code>is_valid: BOOLEAN</code></td>
+                        <td>Is template syntactically valid?</td>
+                    </tr>
+                    <tr>
+                        <td><code>last_error: STRING</code></td>
+                        <td>Last error message</td>
+                    </tr>
+                    <tr>
+                        <td><code>template_source: STRING</code></td>
+                        <td>The template string</td>
+                    </tr>
+                    <tr>
+                        <td><code>escape_html_enabled: BOOLEAN</code></td>
+                        <td>Is escaping enabled?</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Missing Variable Policies</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Constant</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>Policy_empty_string</code></td>
+                        <td>Missing vars become "" (default)</td>
+                    </tr>
+                    <tr>
+                        <td><code>Policy_keep_placeholder</code></td>
+                        <td>Keep {{name}} in output</td>
+                    </tr>
+                    <tr>
+                        <td><code>Policy_raise_exception</code></td>
+                        <td>Set error on missing var</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="testing">
+            <h2>Testing</h2>
+            <p>
+                The library includes a comprehensive test suite with <strong>32 tests</strong> covering:
+            </p>
+            <ul>
+                <li>Initialization (empty, string, file)</li>
+                <li>Configuration (escaping, missing variable policy)</li>
+                <li>Variable handling (single, multiple, clear)</li>
+                <li>Basic rendering (plain text, variables, spaces)</li>
+                <li>HTML escaping (entities, raw output, disabled)</li>
+                <li>Sections (truthy, falsy, missing, inverted)</li>
+                <li>List iteration (items, empty list)</li>
+                <li>Comments (single line, multiline)</li>
+                <li>Partials</li>
+                <li>Nested sections</li>
+            </ul>
+<pre><code><span class="comment">-- Run tests</span>
+ec.exe -batch -config simple_template.ecf -target simple_template_tests -c_compile
+./EIFGENs/simple_template_tests/W_code/simple_template.exe</code></pre>
+        </section>
+    </main>
+
+    <footer>
+        <p>
+            <strong>simple_template</strong> is part of the
+            <a href="https://github.com/ljr1981">simple_*</a> ecosystem
+        </p>
+        <p class="copyright">
+            Copyright &copy; 2024-2025 Larry Rix. MIT License.
+        </p>
+    </footer>
+</body>
+</html>
