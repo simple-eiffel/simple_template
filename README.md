@@ -4,7 +4,7 @@
 
 # simple_template
 
-**[Documentation](https://ljr1981.github.io/simple_template/)**
+**[Documentation](https://simple-eiffel.github.io/simple_template/)**
 
 Mustache-style template engine for Eiffel with automatic HTML escaping and full section support.
 
