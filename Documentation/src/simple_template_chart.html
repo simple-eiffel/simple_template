@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="generator" content="ISE EiffelStudio version 25.02.9.8732 - win64">
+<meta name="description" content="Mustache-style template engine with auto-escaping"/>
+<meta name="author" content="Larry Rix"/>
+<meta name="eis" content="name=Mustache Specification, protocol=URI, src=https://mustache.github.io/"/>
+<meta name="keywords" content="Eiffel class"/>
+<meta name="keywords" content="Eiffel class"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css?family=PT+Sans" rel="stylesheet">
+<title>simple_template Chart</title>
+<link rel="stylesheet" href="../default.css" type="text/css">
+<script type="text/javascript" src="../goto.html"></script>
+</head>
+<body>
+<pre></pre><form class="nav" onsubmit="go_to('../',this.c.value);return false;">
+<div class="nav">
+<a class="nav hierarchy" href="../class_list.html">Classes</a>
+<a class="nav hierarchy" href="../cluster_list.html">Clusters</a>
+<a class="nav hierarchy" href="../cluster_hierarchy.html">Cluster hierarchy</a>
+<span class="nav class selected">Chart</span>
+<a class="nav class" href="simple_template_links.html">Relations</a>
+<a class="nav class" href="simple_template_short.html">Contracts</a>
+<span class="nav class goto">Go to: <input name="c" value="simple_template"></span>
+</div></form><pre><span class="ekeyword">class</span>
+	<a class="eclass" href="../src/simple_template_chart.html">SIMPLE_TEMPLATE</a>
+
+<span class="ekeyword">General</span>
+	<span class="eitag">cluster</span><span class="esymbol">:</span> <a class="ecluster" href="../src/index.html">src</a>
+	<span class="eitag">description</span><span class="esymbol">:</span> <span class="estring">&quot;Mustache-style template engine with auto-escaping&quot;</span>
+	<span class="eitag">create</span><span class="esymbol">:</span> <a class="efeature" href="../src/simple_template_short.html#f_make">make</a><span class="esymbol">,</span> <a class="efeature" href="../src/simple_template_short.html#f_make_from_string">make_from_string</a><span class="esymbol">,</span> <a class="efeature" href="../src/simple_template_short.html#f_make_from_file">make_from_file</a>
+
+<span class="ekeyword">Ancestors</span>
+	<a class="eclass" href="../base/any_chart.html">ANY</a>
+
+<span class="ekeyword">Queries</span>
+	<span title="`comment_start' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_comment_start">Comment_start</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`escape_html_enabled' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_escape_html_enabled">escape_html_enabled</a><span class="esymbol">:</span> <a class="eclass" href="../base/boolean_chart.html">BOOLEAN</a></span>
+	<span title="`has_variable' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_has_variable">has_variable</a> <span class="esymbol">(</span><span class="elocal">a_name</span><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">)</span><span class="esymbol">:</span> <a class="eclass" href="../base/boolean_chart.html">BOOLEAN</a></span>
+	<span title="`inverted_section' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_inverted_section">Inverted_section</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`is_valid' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_is_valid">is_valid</a><span class="esymbol">:</span> <a class="eclass" href="../base/boolean_chart.html">BOOLEAN</a></span>
+	<span title="`last_error' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_last_error">last_error</a><span class="esymbol">:</span> <span class="ekeyword">detachable</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`missing_variable_policy' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_missing_variable_policy">missing_variable_policy</a><span class="esymbol">:</span> <a class="eclass" href="../base/integer_32_chart.html">INTEGER_32</a></span>
+	<span title="`partial_start' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_partial_start">Partial_start</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`policy_empty_string' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_policy_empty_string">Policy_empty_string</a><span class="esymbol">:</span> <a class="eclass" href="../base/integer_32_chart.html">INTEGER_32</a></span>
+	<span title="`policy_keep_placeholder' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_policy_keep_placeholder">Policy_keep_placeholder</a><span class="esymbol">:</span> <a class="eclass" href="../base/integer_32_chart.html">INTEGER_32</a></span>
+	<span title="`policy_raise_exception' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_policy_raise_exception">Policy_raise_exception</a><span class="esymbol">:</span> <a class="eclass" href="../base/integer_32_chart.html">INTEGER_32</a></span>
+	<span title="`raw_end' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_raw_end">Raw_end</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`raw_start' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_raw_start">Raw_start</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`render' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_render">render</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`required_variables' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_required_variables">required_variables</a><span class="esymbol">:</span> <a class="eclass" href="../base/arrayed_list_chart.html">ARRAYED_LIST</a> <span class="esymbol">[</span><a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">]</span></span>
+	<span title="`section_end' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_section_end">Section_end</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`section_start' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_section_start">Section_start</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`template_source' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_template_source">template_source</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`variable_end' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_variable_end">Variable_end</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+	<span title="`variable_start' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_variable_start">Variable_start</a><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a></span>
+
+<span class="ekeyword">Commands</span>
+	<span title="`clear_variables' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_clear_variables">clear_variables</a></span>
+	<span title="`register_partial' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_register_partial">register_partial</a> <span class="esymbol">(</span><span class="elocal">a_name</span><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">;</span> <span class="elocal">a_template</span><span class="esymbol">:</span> <a class="eclass" href="../src/simple_template_chart.html">SIMPLE_TEMPLATE</a><span class="esymbol">)</span></span>
+	<span title="`render_to_file' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_render_to_file">render_to_file</a> <span class="esymbol">(</span><span class="elocal">a_path</span><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">)</span></span>
+	<span title="`set_escape_html' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_set_escape_html">set_escape_html</a> <span class="esymbol">(</span><span class="elocal">a_enabled</span><span class="esymbol">:</span> <a class="eclass" href="../base/boolean_chart.html">BOOLEAN</a><span class="esymbol">)</span></span>
+	<span title="`set_list' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_set_list">set_list</a> <span class="esymbol">(</span><span class="elocal">a_name</span><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">;</span> <span class="elocal">a_items</span><span class="esymbol">:</span> <a class="eclass" href="../base/arrayed_list_chart.html">ARRAYED_LIST</a> <span class="esymbol">[</span><a class="eclass" href="../base/hash_table_chart.html">HASH_TABLE</a> <span class="esymbol">[</span><a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">,</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">]</span><span class="esymbol">]</span><span class="esymbol">)</span></span>
+	<span title="`set_missing_variable_policy' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_set_missing_variable_policy">set_missing_variable_policy</a> <span class="esymbol">(</span><span class="elocal">a_policy</span><span class="esymbol">:</span> <a class="eclass" href="../base/integer_32_chart.html">INTEGER_32</a><span class="esymbol">)</span></span>
+	<span title="`set_section' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_set_section">set_section</a> <span class="esymbol">(</span><span class="elocal">a_name</span><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">;</span> <span class="elocal">a_visible</span><span class="esymbol">:</span> <a class="eclass" href="../base/boolean_chart.html">BOOLEAN</a><span class="esymbol">)</span></span>
+	<span title="`set_variable' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_set_variable">set_variable</a> <span class="esymbol">(</span><span class="elocal">a_name</span><span class="esymbol">,</span> <span class="elocal">a_value</span><span class="esymbol">:</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">)</span></span>
+	<span title="`set_variables' is declared in `Current'"><a class="efeature" href="../src/simple_template_short.html#f_set_variables">set_variables</a> <span class="esymbol">(</span><span class="elocal">a_table</span><span class="esymbol">:</span> <a class="eclass" href="../base/hash_table_chart.html">HASH_TABLE</a> <span class="esymbol">[</span><a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">,</span> <a class="eclass" href="../base/string_8_chart.html">STRING_8</a><span class="esymbol">]</span><span class="esymbol">)</span></span>
+
+<span class="ekeyword">Constraints</span>
+	<span class="etag">template source attached</span>
+	<span class="etag">variables attached</span>
+	<span class="etag">sections attached</span>
+	<span class="etag">lists attached</span>
+	<span class="etag">partials attached</span>
+
+</pre><form class="nav" onsubmit="go_to('../',this.c.value);return false;">
+<div class="nav">
+<a class="nav hierarchy" href="../class_list.html">Classes</a>
+<a class="nav hierarchy" href="../cluster_list.html">Clusters</a>
+<a class="nav hierarchy" href="../cluster_hierarchy.html">Cluster hierarchy</a>
+<span class="nav class selected">Chart</span>
+<a class="nav class" href="simple_template_links.html">Relations</a>
+<a class="nav class" href="simple_template_short.html">Contracts</a>
+<span class="nav class goto">Go to: <input name="c" value="simple_template"></span>
+</div></form><pre></pre>
+<p style="text-align:center;">Generated by <a href="http://www.eiffel.com">ISE EiffelStudio</a></p>
+</body>
+</html>
