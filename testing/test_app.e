@@ -3,7 +3,7 @@ note
 	author: "Larry Rix"
 
 class
-	TEMPLATE_TEST_APP
+	TEST_APP
 
 create
 	make
@@ -13,7 +13,7 @@ feature {NONE} -- Initialization
 	make
 			-- Run tests.
 		local
-			tests: SIMPLE_TEMPLATE_TEST_SET
+			tests: LIB_TESTS
 		do
 			create tests
 			print ("simple_template test runner%N")
