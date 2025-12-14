@@ -1,0 +1,9 @@
+{
+  "name": "simple_template",
+  "version": "0.1.0",
+  "description": "Simple Template Library - Mustache-style Template Engine for Eiffel",
+  "author": "Larry Rix",
+  "license": "MIT",
+  "category": "web",
+  "keywords": ["template", "rendering", "mustache"]
+}
