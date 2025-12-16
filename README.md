@@ -23,15 +23,15 @@ Mustache-style template engine for Eiffel with automatic HTML escaping and full 
 
 ## Installation
 
+Set the ecosystem environment variable (one-time setup for all simple_* libraries):
+```
+SIMPLE_EIFFEL=D:\prod
+```
+
 Add to your ECF:
 
 ```xml
-<library name="simple_template" location="$SIMPLE_TEMPLATE\simple_template.ecf"/>
-```
-
-Set environment variable:
-```
-SIMPLE_TEMPLATE=D:\prod\simple_template
+<library name="simple_template" location="$SIMPLE_EIFFEL/simple_template/simple_template.ecf"/>
 ```
 
 ## Quick Start (Zero-Configuration)
