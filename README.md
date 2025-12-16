@@ -34,7 +34,44 @@ Set environment variable:
 SIMPLE_TEMPLATE=D:\prod\simple_template
 ```
 
-## Usage
+## Quick Start (Zero-Configuration)
+
+Use `SIMPLE_TEMPLATE_QUICK` for the simplest possible templating:
+
+```eiffel
+local
+    tpl: SIMPLE_TEMPLATE_QUICK
+    html: STRING
+do
+    create tpl.make
+
+    -- One-liner render with variables
+    html := tpl.render ("Hello {{name}}!", <<["name", "World"]>>)
+
+    -- Render from file
+    html := tpl.file ("templates/email.html", <<["user", "Alice"], ["link", url]>>)
+
+    -- Conditional rendering
+    html := tpl.render_if (is_logged_in, "Welcome back!", <<>>)
+    html := tpl.render_choice (has_items, cart_template, empty_template, vars)
+
+    -- List rendering (render template for each item)
+    html := tpl.render_list ("<li>{{name}}</li>", <<item1_vars, item2_vars, item3_vars>>)
+
+    -- Simple substitution (no Mustache, just replace)
+    msg := tpl.substitute ("Hello $name!", <<["$name", "Alice"]>>)
+
+    -- Write output to file
+    tpl.render_to_file (template, vars, "output.html")
+
+    -- Get required variables from template
+    across tpl.variables_in ("{{a}} and {{b}}") as v loop
+        print (v)  -- "a", "b"
+    end
+end
+```
+
+## Standard API (Full Control)
 
 ### Basic Variable Substitution
 

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMPLE_TEMPLATE_QUICK - Zero-Configuration Templates</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="images/logo.png" alt="simple_* logo" class="logo">
+        </div>
+        <h1>SIMPLE_TEMPLATE_QUICK</h1>
+        <p class="tagline">Zero-Configuration Templates for Beginners</p>
+        <div class="badges">
+            <span class="badge badge-version">v1.0.0</span>
+            <span class="badge badge-license">MIT</span>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#api">API Reference</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>
+                <strong>SIMPLE_TEMPLATE_QUICK</strong> provides one-liner template rendering with
+                Mustache-style <code>{{variable}}</code> syntax. Auto HTML escaping for XSS protection.
+            </p>
+            <p>For sections, partials, and advanced features, use SIMPLE_TEMPLATE directly.</p>
+        </section>
+
+        <section id="quick-start">
+            <h2>Quick Start</h2>
+<pre><code><span class="keyword">local</span>
+    tpl: <span class="type">SIMPLE_TEMPLATE_QUICK</span>
+    html: <span class="type">STRING</span>
+<span class="keyword">do</span>
+    <span class="keyword">create</span> tpl.make
+
+    <span class="comment">-- One-liner render with variables</span>
+    html := tpl.render (<span class="string">"Hello {{name}}!"</span>, &lt;&lt;[<span class="string">"name"</span>, <span class="string">"World"</span>]&gt;&gt;)
+
+    <span class="comment">-- Render from file</span>
+    html := tpl.file (<span class="string">"templates/email.html"</span>, &lt;&lt;[<span class="string">"user"</span>, <span class="string">"Alice"</span>], [<span class="string">"link"</span>, url]&gt;&gt;)
+
+    <span class="comment">-- Conditional rendering</span>
+    html := tpl.render_if (is_logged_in, <span class="string">"Welcome back!"</span>, &lt;&lt;&gt;&gt;)
+    html := tpl.render_choice (has_items, cart_template, empty_template, vars)
+
+    <span class="comment">-- List rendering (render template for each item)</span>
+    html := tpl.render_list (<span class="string">"&lt;li&gt;{{name}}&lt;/li&gt;"</span>, &lt;&lt;item1_vars, item2_vars, item3_vars&gt;&gt;)
+
+    <span class="comment">-- Simple substitution (no Mustache, just replace)</span>
+    msg := tpl.substitute (<span class="string">"Hello $name!"</span>, &lt;&lt;[<span class="string">"$name"</span>, <span class="string">"Alice"</span>]&gt;&gt;)
+
+    <span class="comment">-- Write output to file</span>
+    tpl.render_to_file (template, vars, <span class="string">"output.html"</span>)
+
+    <span class="comment">-- Get required variables from template</span>
+    <span class="keyword">across</span> tpl.variables_in (<span class="string">"{{a}} and {{b}}"</span>) <span class="keyword">as</span> v <span class="keyword">loop</span>
+        print (v)  <span class="comment">-- "a", "b"</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span></code></pre>
+        </section>
+
+        <section id="api">
+            <h2>API Reference</h2>
+
+            <h3>Rendering</h3>
+            <table>
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><code>render (template, vars)</code></td><td>Render template with variables</td></tr>
+                <tr><td><code>file (path, vars)</code></td><td>Render template file</td></tr>
+                <tr><td><code>render_to_file (tpl, vars, path)</code></td><td>Render and write to file</td></tr>
+            </table>
+
+            <h3>Conditional Rendering</h3>
+            <table>
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><code>render_if (cond, template, vars)</code></td><td>Render only if condition true</td></tr>
+                <tr><td><code>render_choice (cond, true_tpl, false_tpl, vars)</code></td><td>Render based on condition</td></tr>
+            </table>
+
+            <h3>List Rendering</h3>
+            <table>
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><code>render_list (template, items)</code></td><td>Render template for each item</td></tr>
+            </table>
+
+            <h3>Utilities</h3>
+            <table>
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><code>substitute (text, pairs)</code></td><td>Simple string replacement</td></tr>
+                <tr><td><code>variables_in (template)</code></td><td>Extract required variable names</td></tr>
+            </table>
+        </section>
+
+        <section id="syntax">
+            <h2>Template Syntax</h2>
+            <table>
+                <tr><th>Syntax</th><th>Description</th></tr>
+                <tr><td><code>{{variable}}</code></td><td>Output variable (HTML escaped)</td></tr>
+                <tr><td><code>{{{variable}}}</code></td><td>Output variable (raw, no escaping)</td></tr>
+                <tr><td><code>{{! comment }}</code></td><td>Comment (not rendered)</td></tr>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        <p>Part of the <a href="https://github.com/simple-eiffel">Simple Eiffel</a> ecosystem</p>
+    </footer>
+</body>
+</html>
