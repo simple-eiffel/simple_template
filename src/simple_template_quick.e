@@ -32,7 +32,7 @@ feature {NONE} -- Initialization
 	make
 			-- Create quick template facade.
 		do
-			create logger.make ("template_quick")
+			create logger.make
 		ensure
 			logger_exists: logger /= Void
 		end
