@@ -50,8 +50,8 @@ feature -- One-Liner Rendering
 		do
 			logger.debug_log ("Rendering template (" + a_template.count.out + " chars)")
 			create l_tpl.make_from_string (a_template)
-			across a_vars as v loop
-				l_tpl.set_variable (v.name, v.value)
+			across a_vars as ic_var loop
+				l_tpl.set_variable (ic_var.name, ic_var.value)
 			end
 			Result := l_tpl.render
 		ensure
@@ -68,8 +68,8 @@ feature -- One-Liner Rendering
 		do
 			create l_tpl.make_from_string (a_template)
 			l_tpl.set_escape_html (False)
-			across a_vars as v loop
-				l_tpl.set_variable (v.name, v.value)
+			across a_vars as ic_var loop
+				l_tpl.set_variable (ic_var.name, ic_var.value)
 			end
 			Result := l_tpl.render
 		ensure
@@ -91,8 +91,8 @@ feature -- One-Liner Rendering
 		do
 			logger.debug_log ("Rendering file: " + a_path)
 			create l_tpl.make_from_file (a_path)
-			across a_vars as v loop
-				l_tpl.set_variable (v.name, v.value)
+			across a_vars as ic_var loop
+				l_tpl.set_variable (ic_var.name, ic_var.value)
 			end
 			Result := l_tpl.render
 		ensure
@@ -109,8 +109,8 @@ feature -- Simple Substitution (no Mustache)
 			replacements_not_void: a_replacements /= Void
 		do
 			Result := a_template.twin
-			across a_replacements as r loop
-				Result.replace_substring_all (r.find, r.replace)
+			across a_replacements as ic_replacement loop
+				Result.replace_substring_all (ic_replacement.find, ic_replacement.replace)
 			end
 		ensure
 			result_exists: Result /= Void
@@ -161,10 +161,10 @@ feature -- List Rendering
 			l_tpl: SIMPLE_TEMPLATE
 		do
 			create Result.make_empty
-			across a_items as item loop
+			across a_items as ic_item loop
 				create l_tpl.make_from_string (a_template)
-				across item as v loop
-					l_tpl.set_variable (v.name, v.value)
+				across ic_item as ic_var loop
+					l_tpl.set_variable (ic_var.name, ic_var.value)
 				end
 				Result.append (l_tpl.render)
 			end

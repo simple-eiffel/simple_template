@@ -19,10 +19,10 @@ feature {NONE} -- Initialization
 			-- Create empty template.
 		do
 			template_source := ""
-			create variables.make (10)
-			create sections.make (5)
-			create lists.make (5)
-			create partials.make (3)
+			create variables.make (Default_variables_capacity)
+			create sections.make (Default_sections_capacity)
+			create lists.make (Default_lists_capacity)
+			create partials.make (Default_partials_capacity)
 			escape_html_enabled := True
 			missing_variable_policy := Policy_empty_string
 		ensure
@@ -288,6 +288,18 @@ feature -- Constants
 	Max_partial_depth: INTEGER = 100
 			-- Maximum allowed partial nesting depth (prevents circular partials).
 
+	Default_variables_capacity: INTEGER = 10
+			-- Default initial capacity for variables hash table
+
+	Default_sections_capacity: INTEGER = 5
+			-- Default initial capacity for sections hash table
+
+	Default_lists_capacity: INTEGER = 5
+			-- Default initial capacity for lists hash table
+
+	Default_partials_capacity: INTEGER = 3
+			-- Default initial capacity for partials hash table
+
 	Variable_start: STRING = "{{"
 	Variable_end: STRING = "}}"
 	Section_start: STRING = "{{#"
@@ -321,7 +333,7 @@ feature {NONE} -- Implementation
 			source_not_void: a_source /= Void
 			context_not_void: a_context /= Void
 		local
-			i, j, k: INTEGER
+			l_i, l_j, l_k: INTEGER
 			l_source: STRING
 			l_tag_start, l_tag_end: INTEGER
 			l_tag_content: STRING
@@ -333,87 +345,87 @@ feature {NONE} -- Implementation
 		do
 			create Result.make (a_source.count)
 			l_source := a_source
-			i := 1
+			l_i := 1
 
 			from
 			until
-				i > l_source.count
+				l_i > l_source.count
 			loop
 				-- Look for comment
-				if i + 2 <= l_source.count and then l_source.substring (i, i + 2).same_string ("{{!") then
+				if l_i + 2 <= l_source.count and then l_source.substring (l_i, l_i + 2).same_string ("{{!") then
 					-- Comment: find closing }}
-					j := l_source.substring_index ("}}", i + 3)
-					if j > 0 then
-						i := j + 2
+					l_j := l_source.substring_index ("}}", l_i + 3)
+					if l_j > 0 then
+						l_i := l_j + 2
 					else
-						Result.append_character (l_source.item (i))
-						i := i + 1
+						Result.append_character (l_source.item (l_i))
+						l_i := l_i + 1
 					end
 
 				-- Look for raw/unescaped
-				elseif i + 2 <= l_source.count and then l_source.substring (i, i + 2).same_string ("{{{") then
-					j := l_source.substring_index ("}}}", i + 3)
-					if j > 0 then
-						l_var_name := l_source.substring (i + 3, j - 1)
+				elseif l_i + 2 <= l_source.count and then l_source.substring (l_i, l_i + 2).same_string ("{{{") then
+					l_j := l_source.substring_index ("}}}", l_i + 3)
+					if l_j > 0 then
+						l_var_name := l_source.substring (l_i + 3, l_j - 1)
 						l_var_name.adjust
 						l_value := get_variable (l_var_name, a_context)
 						Result.append (l_value) -- No escaping
-						i := j + 3
+						l_i := l_j + 3
 					else
-						Result.append_character (l_source.item (i))
-						i := i + 1
+						Result.append_character (l_source.item (l_i))
+						l_i := l_i + 1
 					end
 
 				-- Look for inverted section
-				elseif i + 2 <= l_source.count and then l_source.substring (i, i + 2).same_string ("{{^") then
-					j := l_source.substring_index ("}}", i + 3)
-					if j > 0 then
-						l_section_name := l_source.substring (i + 3, j - 1)
+				elseif l_i + 2 <= l_source.count and then l_source.substring (l_i, l_i + 2).same_string ("{{^") then
+					l_j := l_source.substring_index ("}}", l_i + 3)
+					if l_j > 0 then
+						l_section_name := l_source.substring (l_i + 3, l_j - 1)
 						l_section_name.adjust
 						l_section_end_tag := "{{/" + l_section_name + "}}"
-						k := l_source.substring_index (l_section_end_tag, j + 2)
-						if k > 0 then
-							l_section_content := l_source.substring (j + 2, k - 1)
+						l_k := l_source.substring_index (l_section_end_tag, l_j + 2)
+						if l_k > 0 then
+							l_section_content := l_source.substring (l_j + 2, l_k - 1)
 							-- Render only if section is falsy
 							if not is_section_truthy (l_section_name, a_context) then
 								Result.append (render_template (l_section_content, a_context))
 							end
-							i := k + l_section_end_tag.count
+							l_i := l_k + l_section_end_tag.count
 						else
-							Result.append_character (l_source.item (i))
-							i := i + 1
+							Result.append_character (l_source.item (l_i))
+							l_i := l_i + 1
 						end
 					else
-						Result.append_character (l_source.item (i))
-						i := i + 1
+						Result.append_character (l_source.item (l_i))
+						l_i := l_i + 1
 					end
 
 				-- Look for section start
-				elseif i + 2 <= l_source.count and then l_source.substring (i, i + 2).same_string ("{{#") then
-					j := l_source.substring_index ("}}", i + 3)
-					if j > 0 then
-						l_section_name := l_source.substring (i + 3, j - 1)
+				elseif l_i + 2 <= l_source.count and then l_source.substring (l_i, l_i + 2).same_string ("{{#") then
+					l_j := l_source.substring_index ("}}", l_i + 3)
+					if l_j > 0 then
+						l_section_name := l_source.substring (l_i + 3, l_j - 1)
 						l_section_name.adjust
 						l_section_end_tag := "{{/" + l_section_name + "}}"
-						k := l_source.substring_index (l_section_end_tag, j + 2)
-						if k > 0 then
-							l_section_content := l_source.substring (j + 2, k - 1)
+						l_k := l_source.substring_index (l_section_end_tag, l_j + 2)
+						if l_k > 0 then
+							l_section_content := l_source.substring (l_j + 2, l_k - 1)
 							Result.append (render_section (l_section_name, l_section_content, a_context))
-							i := k + l_section_end_tag.count
+							l_i := l_k + l_section_end_tag.count
 						else
-							Result.append_character (l_source.item (i))
-							i := i + 1
+							Result.append_character (l_source.item (l_i))
+							l_i := l_i + 1
 						end
 					else
-						Result.append_character (l_source.item (i))
-						i := i + 1
+						Result.append_character (l_source.item (l_i))
+						l_i := l_i + 1
 					end
 
 				-- Look for partial
-				elseif i + 2 <= l_source.count and then l_source.substring (i, i + 2).same_string ("{{>") then
-					j := l_source.substring_index ("}}", i + 3)
-					if j > 0 then
-						l_var_name := l_source.substring (i + 3, j - 1)
+				elseif l_i + 2 <= l_source.count and then l_source.substring (l_i, l_i + 2).same_string ("{{>") then
+					l_j := l_source.substring_index ("}}", l_i + 3)
+					if l_j > 0 then
+						l_var_name := l_source.substring (l_i + 3, l_j - 1)
 						l_var_name.adjust
 						if partial_depth >= Max_partial_depth then
 							-- Circular partial protection
@@ -444,17 +456,17 @@ feature {NONE} -- Implementation
 								a_context.forth
 							end
 						end
-						i := j + 2
+						l_i := l_j + 2
 					else
-						Result.append_character (l_source.item (i))
-						i := i + 1
+						Result.append_character (l_source.item (l_i))
+						l_i := l_i + 1
 					end
 
 				-- Look for variable
-				elseif i + 1 <= l_source.count and then l_source.substring (i, i + 1).same_string ("{{") then
-					j := l_source.substring_index ("}}", i + 2)
-					if j > 0 then
-						l_var_name := l_source.substring (i + 2, j - 1)
+				elseif l_i + 1 <= l_source.count and then l_source.substring (l_i, l_i + 1).same_string ("{{") then
+					l_j := l_source.substring_index ("}}", l_i + 2)
+					if l_j > 0 then
+						l_var_name := l_source.substring (l_i + 2, l_j - 1)
 						l_var_name.adjust
 						l_value := get_variable (l_var_name, a_context)
 						if escape_html_enabled then
@@ -462,18 +474,18 @@ feature {NONE} -- Implementation
 						else
 							Result.append (l_value)
 						end
-						i := j + 2
+						l_i := l_j + 2
 					else
-						Result.append_character (l_source.item (i))
-						i := i + 1
+						Result.append_character (l_source.item (l_i))
+						l_i := l_i + 1
 					end
 
 				else
-					Result.append_character (l_source.item (i))
-					i := i + 1
+					Result.append_character (l_source.item (l_i))
+					l_i := l_i + 1
 				end
 			variant
-				l_source.count - i + 2
+				l_source.count - l_i + 2
 			end
 		ensure
 			result_attached: Result /= Void
@@ -498,8 +510,8 @@ feature {NONE} -- Implementation
 			l_list := lists.item (a_name)
 			if attached l_list as ll then
 				-- Iterate over list items
-				across ll as list_cursor loop
-					l_item := list_cursor
+				across ll as ic_list loop
+					l_item := ic_list
 					-- Create merged context
 					create l_item_context.make (a_context.count + l_item.count)
 					from
@@ -604,17 +616,17 @@ feature {NONE} -- Implementation
 		require
 			value_not_void: a_value /= Void
 		local
-			i: INTEGER
-			c: CHARACTER
+			l_i: INTEGER
+			l_c: CHARACTER
 		do
 			create Result.make (a_value.count)
 			from
-				i := 1
+				l_i := 1
 			until
-				i > a_value.count
+				l_i > a_value.count
 			loop
-				c := a_value.item (i)
-				inspect c
+				l_c := a_value.item (l_i)
+				inspect l_c
 				when '&' then
 					Result.append ("&amp;")
 				when '<' then
@@ -626,11 +638,11 @@ feature {NONE} -- Implementation
 				when '%'' then
 					Result.append ("&#39;")
 				else
-					Result.append_character (c)
+					Result.append_character (l_c)
 				end
-				i := i + 1
+				l_i := l_i + 1
 			variant
-				a_value.count - i + 1
+				a_value.count - l_i + 1
 			end
 		ensure
 			result_attached: Result /= Void
@@ -641,45 +653,45 @@ feature {NONE} -- Implementation
 		require
 			source_not_void: a_source /= Void
 		local
-			i, j: INTEGER
+			l_i, l_j: INTEGER
 			l_name: STRING
 		do
-			create Result.make (10)
-			i := 1
+			create Result.make (Default_variables_capacity)
+			l_i := 1
 
 			from
 			until
-				i > a_source.count
+				l_i > a_source.count
 			loop
-				if i + 1 <= a_source.count and then a_source.substring (i, i + 1).same_string ("{{") then
+				if l_i + 1 <= a_source.count and then a_source.substring (l_i, l_i + 1).same_string ("{{") then
 					-- Skip special tags
-					if i + 2 <= a_source.count and then
-					   (a_source.item (i + 2) = '#' or
-					    a_source.item (i + 2) = '/' or
-					    a_source.item (i + 2) = '^' or
-					    a_source.item (i + 2) = '!' or
-					    a_source.item (i + 2) = '>' or
-					    a_source.item (i + 2) = '{')
+					if l_i + 2 <= a_source.count and then
+					   (a_source.item (l_i + 2) = '#' or
+					    a_source.item (l_i + 2) = '/' or
+					    a_source.item (l_i + 2) = '^' or
+					    a_source.item (l_i + 2) = '!' or
+					    a_source.item (l_i + 2) = '>' or
+					    a_source.item (l_i + 2) = '{')
 					then
-						i := i + 3
+						l_i := l_i + 3
 					else
-						j := a_source.substring_index ("}}", i + 2)
-						if j > 0 then
-							l_name := a_source.substring (i + 2, j - 1)
+						l_j := a_source.substring_index ("}}", l_i + 2)
+						if l_j > 0 then
+							l_name := a_source.substring (l_i + 2, l_j - 1)
 							l_name.adjust
 							if not list_has_string (Result, l_name) then
 								Result.extend (l_name)
 							end
-							i := j + 2
+							l_i := l_j + 2
 						else
-							i := i + 1
+							l_i := l_i + 1
 						end
 					end
 				else
-					i := i + 1
+					l_i := l_i + 1
 				end
 			variant
-				a_source.count - i + 2
+				a_source.count - l_i + 2
 			end
 		ensure
 			result_attached: Result /= Void
@@ -691,8 +703,8 @@ feature {NONE} -- Implementation
 			list_not_void: a_list /= Void
 			string_not_void: a_string /= Void
 		do
-			across a_list as item loop
-				if item.same_string (a_string) then
+			across a_list as ic_item loop
+				if ic_item.same_string (a_string) then
 					Result := True
 				end
 			end
