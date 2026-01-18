@@ -110,6 +110,22 @@ feature -- Test: Variables
 			assert_false ("cleared", tpl.has_variable ("name"))
 		end
 
+	test_set_variable_any
+			-- Test setting variable from ANY value.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.set_variable_any"
+		local
+			tpl: SIMPLE_TEMPLATE
+		do
+			create tpl.make_from_string ("Count: {{count}}, Pi: {{pi}}")
+			tpl.set_variable_any ("count", 42)
+			tpl.set_variable_any ("pi", 3.14159)
+			assert_true ("has count", tpl.has_variable ("count"))
+			assert_true ("has pi", tpl.has_variable ("pi"))
+			assert_string_contains ("count rendered", tpl.render, "42")
+			assert_string_contains ("pi rendered", tpl.render, "3.14")
+		end
+
 feature -- Test: Basic Rendering
 
 	test_render_plain_text
@@ -403,6 +419,31 @@ feature -- Test: Partial Templates
 			assert_strings_equal ("partial included", "<h1>Title</h1>Body", tpl.render)
 		end
 
+	test_partial_depth_limit
+			-- Test circular partial detection.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.render"
+		local
+			tpl: SIMPLE_TEMPLATE
+			recursive: SIMPLE_TEMPLATE
+			l_output: STRING
+		do
+			-- Create a partial that references itself (circular)
+			create tpl.make_from_string ("Start{{>recurse}}End")
+			create recursive.make_from_string ("X{{>recurse}}")
+			tpl.register_partial ("recurse", recursive)
+			recursive.register_partial ("recurse", recursive)
+
+			-- Render - should stop at max depth, not hang
+			l_output := tpl.render
+			-- If we get here without hanging, depth limit worked
+			if attached tpl.last_error as l_err then
+				assert_true ("depth limit worked", l_err.has_substring ("depth"))
+			else
+				assert_true ("should have error", False)
+			end
+		end
+
 feature -- Test: Nested Sections
 
 	test_nested_sections
@@ -469,6 +510,38 @@ feature -- Test: Complex Templates
 			assert_string_contains ("has title", tpl.render, "My List")
 			assert_string_contains ("has item 1", tpl.render, "Item 1")
 			assert_string_contains ("has item 2", tpl.render, "Item 2")
+		end
+
+feature -- Test: File Output
+
+	test_render_to_file
+			-- Test rendering to file.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.render_to_file"
+		local
+			tpl: SIMPLE_TEMPLATE
+			l_file: PLAIN_TEXT_FILE
+			l_content: STRING
+			l_path: STRING
+		do
+			l_path := "test_template_output.txt"
+			create tpl.make_from_string ("Hello, {{name}}!")
+			tpl.set_variable ("name", "File")
+			tpl.render_to_file (l_path)
+
+			-- Verify file exists and has correct content
+			create l_file.make_open_read (l_path)
+			l_file.read_stream (l_file.count)
+			l_content := l_file.last_string
+			l_file.close
+
+			assert_strings_equal ("file content", "Hello, File!", l_content)
+
+			-- Cleanup
+			create l_file.make_with_name (l_path)
+			if l_file.exists then
+				l_file.delete
+			end
 		end
 
 end

@@ -46,6 +46,10 @@ feature {NONE} -- Initialization
 		require
 			path_not_void: a_path /= Void
 			path_not_empty: not a_path.is_empty
+			-- ASSAULT: expose V15 path traversal vulnerability
+			no_parent_traversal: not a_path.has_substring ("..")
+			no_absolute_unix: a_path.count > 0 implies a_path.item (1) /= '/'
+			no_windows_drive: a_path.count >= 2 implies not (a_path.item (2) = ':')
 		local
 			l_file: PLAIN_TEXT_FILE
 			l_content: STRING
@@ -113,6 +117,18 @@ feature -- Context Building
 			variable_set: has_variable (a_name)
 		end
 
+	set_variable_any (a_name: STRING; a_value: ANY)
+			-- Set variable `a_name` from any value (converts via `.out`).
+		require
+			name_not_void: a_name /= Void
+			name_not_empty: not a_name.is_empty
+			value_not_void: a_value /= Void
+		do
+			set_variable (a_name, a_value.out)
+		ensure
+			variable_set: has_variable (a_name)
+		end
+
 	set_variables (a_table: HASH_TABLE [STRING, STRING])
 			-- Set multiple variables from `a_table`.
 		require
@@ -164,21 +180,59 @@ feature -- Context Building
 			lists_empty: lists.is_empty
 		end
 
+	remove_variable (a_name: STRING)
+			-- Remove variable `a_name` if present.
+			-- FIX for V10: Allows cleanup of partial state after render.
+		require
+			name_not_void: a_name /= Void
+		do
+			variables.remove (a_name)
+		ensure
+			removed: not has_variable (a_name)
+		end
+
 feature -- Rendering
 
 	render: STRING
 			-- Render template with current context.
 		do
+			Result := render_with_depth (0)
+		ensure
+			result_attached: Result /= Void
+			-- ASSAULT: render is a query, should not modify state
+			source_unchanged: template_source.same_string (old template_source.twin)
+			variables_count_unchanged: variables.count = old variables.count
+			sections_count_unchanged: sections.count = old sections.count
+			lists_count_unchanged: lists.count = old lists.count
+			partials_count_unchanged: partials.count = old partials.count
+			-- ASSAULT: expose V11 stale error - empty template can't generate errors
+			error_cleared_on_empty: template_source.is_empty implies is_valid
+		end
+
+feature {SIMPLE_TEMPLATE} -- Internal rendering
+
+	render_with_depth (a_depth: INTEGER): STRING
+			-- Render template with current context at given partial depth.
+		require
+			valid_depth: a_depth >= 0
+		do
+			partial_depth := a_depth
 			Result := render_template (template_source, variables)
 		ensure
 			result_attached: Result /= Void
 		end
+
+feature -- Rendering (continued)
 
 	render_to_file (a_path: STRING)
 			-- Render template and write to file at `a_path`.
 		require
 			path_not_void: a_path /= Void
 			path_not_empty: not a_path.is_empty
+			-- ASSAULT: expose V16 CRITICAL path traversal vulnerability for writes
+			no_parent_traversal: not a_path.has_substring ("..")
+			no_absolute_unix: a_path.count > 0 implies a_path.item (1) /= '/'
+			no_windows_drive: a_path.count >= 2 implies not (a_path.item (2) = ':')
 		local
 			l_file: PLAIN_TEXT_FILE
 			l_output: STRING
@@ -231,6 +285,9 @@ feature -- Constants
 	Policy_raise_exception: INTEGER = 2
 	Policy_keep_placeholder: INTEGER = 3
 
+	Max_partial_depth: INTEGER = 100
+			-- Maximum allowed partial nesting depth (prevents circular partials).
+
 	Variable_start: STRING = "{{"
 	Variable_end: STRING = "}}"
 	Section_start: STRING = "{{#"
@@ -242,6 +299,9 @@ feature -- Constants
 	Partial_start: STRING = "{{>"
 
 feature {NONE} -- Implementation
+
+	partial_depth: INTEGER
+			-- Current partial nesting depth (for circular detection).
 
 	variables: HASH_TABLE [STRING, STRING]
 			-- Variable name -> value map.
@@ -355,8 +415,12 @@ feature {NONE} -- Implementation
 					if j > 0 then
 						l_var_name := l_source.substring (i + 3, j - 1)
 						l_var_name.adjust
-						if attached partials.item (l_var_name) as l_partial then
-							-- Render partial with current context
+						if partial_depth >= Max_partial_depth then
+							-- Circular partial protection
+							last_error := "Partial depth exceeded (max " + Max_partial_depth.out + "): " + l_var_name
+						elseif attached partials.item (l_var_name) as l_partial then
+							-- Render partial with current context, passing depth
+							-- FIX V10: Track which variables we add so we can remove them after
 							from
 								a_context.start
 							until
@@ -365,7 +429,20 @@ feature {NONE} -- Implementation
 								l_partial.set_variable (a_context.key_for_iteration, a_context.item_for_iteration)
 								a_context.forth
 							end
-							Result.append (l_partial.render)
+							Result.append (l_partial.render_with_depth (partial_depth + 1))
+							-- Propagate any error from partial back to this template
+							if attached l_partial.last_error as l_err then
+								last_error := l_err
+							end
+							-- FIX V10: Clean up partial state by removing context variables we added
+							from
+								a_context.start
+							until
+								a_context.after
+							loop
+								l_partial.remove_variable (a_context.key_for_iteration)
+								a_context.forth
+							end
 						end
 						i := j + 2
 					else
@@ -398,12 +475,16 @@ feature {NONE} -- Implementation
 			variant
 				l_source.count - i + 2
 			end
+		ensure
+			result_attached: Result /= Void
 		end
 
 	render_section (a_name: STRING; a_content: STRING; a_context: HASH_TABLE [STRING, STRING]): STRING
 			-- Render section `a_name` with `a_content`.
 		require
 			name_not_void: a_name /= Void
+			-- ASSAULT: expose V09 - empty section name in render
+			name_not_empty: not a_name.is_empty
 			content_not_void: a_content /= Void
 			context_not_void: a_context /= Void
 		local
@@ -443,12 +524,16 @@ feature {NONE} -- Implementation
 				-- Render once if section is truthy
 				Result.append (render_template (a_content, a_context))
 			end
+		ensure
+			result_attached: Result /= Void
 		end
 
 	is_section_truthy (a_name: STRING; a_context: HASH_TABLE [STRING, STRING]): BOOLEAN
 			-- Is section `a_name` truthy?
 		require
 			name_not_void: a_name /= Void
+			-- ASSAULT: expose V09 - empty section name should never reach here
+			name_not_empty: not a_name.is_empty
 		local
 			l_value: detachable STRING
 		do
@@ -482,6 +567,8 @@ feature {NONE} -- Implementation
 			-- Get value of variable `a_name`.
 		require
 			name_not_void: a_name /= Void
+			-- ASSAULT: expose V08 - empty variable name should never reach here
+			name_not_empty: not a_name.is_empty
 			context_not_void: a_context /= Void
 		local
 			l_value: detachable STRING
@@ -594,6 +681,8 @@ feature {NONE} -- Implementation
 			variant
 				a_source.count - i + 2
 			end
+		ensure
+			result_attached: Result /= Void
 		end
 
 	list_has_string (a_list: ARRAYED_LIST [STRING]; a_string: STRING): BOOLEAN
@@ -615,5 +704,7 @@ invariant
 	sections_attached: sections /= Void
 	lists_attached: lists /= Void
 	partials_attached: partials /= Void
+	valid_policy: missing_variable_policy >= Policy_empty_string and missing_variable_policy <= Policy_keep_placeholder
+	non_negative_depth: partial_depth >= 0
 
 end

@@ -34,6 +34,7 @@ feature {NONE} -- Initialization
 			run_test (agent tests.test_set_variable, "test_set_variable")
 			run_test (agent tests.test_set_variables, "test_set_variables")
 			run_test (agent tests.test_clear_variables, "test_clear_variables")
+			run_test (agent tests.test_set_variable_any, "test_set_variable_any")
 
 			-- Basic Rendering
 			run_test (agent tests.test_render_plain_text, "test_render_plain_text")
@@ -72,6 +73,7 @@ feature {NONE} -- Initialization
 
 			-- Partials
 			run_test (agent tests.test_partial, "test_partial")
+			run_test (agent tests.test_partial_depth_limit, "test_partial_depth_limit")
 
 			-- Nested Sections
 			run_test (agent tests.test_nested_sections, "test_nested_sections")
@@ -79,6 +81,15 @@ feature {NONE} -- Initialization
 
 			-- Complex Templates
 			run_test (agent tests.test_complex_template, "test_complex_template")
+
+			-- File Output
+			run_test (agent tests.test_render_to_file, "test_render_to_file")
+
+			-- Adversarial Tests
+			run_adversarial_tests
+
+			-- Stress Tests
+			run_stress_tests
 
 			print ("%N=============================%N")
 			print ("Results: " + passed.out + " passed, " + failed.out + " failed%N")
@@ -94,6 +105,25 @@ feature {NONE} -- Implementation
 
 	passed: INTEGER
 	failed: INTEGER
+	adversarial_tests: ADVERSARIAL_TESTS
+	stress_tests: STRESS_TESTS
+
+	run_adversarial_tests
+			-- Run adversarial test suite.
+		do
+			create adversarial_tests.make
+			adversarial_tests.run_all
+			-- Add adversarial counts to main totals
+			passed := passed + adversarial_tests.passed
+			failed := failed + adversarial_tests.failed
+		end
+
+	run_stress_tests
+			-- Run stress test suite.
+		do
+			create stress_tests.make
+			-- Stress tests print their own output, no counter integration
+		end
 
 	run_test (a_test: PROCEDURE; a_name: STRING)
 			-- Run a single test and update counters.

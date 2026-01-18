@@ -44,6 +44,7 @@ feature -- One-Liner Rendering
 			-- Example: tpl.render ("Hello {{name}}!", <<["name", "World"]>>)
 		require
 			template_not_empty: not a_template.is_empty
+			vars_not_void: a_vars /= Void
 		local
 			l_tpl: SIMPLE_TEMPLATE
 		do
@@ -61,6 +62,7 @@ feature -- One-Liner Rendering
 			-- Render template without HTML escaping.
 		require
 			template_not_empty: not a_template.is_empty
+			vars_not_void: a_vars /= Void
 		local
 			l_tpl: SIMPLE_TEMPLATE
 		do
@@ -76,8 +78,14 @@ feature -- One-Liner Rendering
 
 	file (a_path: STRING; a_vars: ARRAY [TUPLE [name: STRING; value: STRING]]): STRING
 			-- Render template from file with variables.
+			-- Returns empty string if file cannot be read.
 		require
 			path_not_empty: not a_path.is_empty
+			vars_not_void: a_vars /= Void
+			-- ASSAULT: expose V15 path traversal vulnerability
+			no_parent_traversal: not a_path.has_substring ("..")
+			no_absolute_unix: a_path.count > 0 implies a_path.item (1) /= '/'
+			no_windows_drive: a_path.count >= 2 implies not (a_path.item (2) = ':')
 		local
 			l_tpl: SIMPLE_TEMPLATE
 		do
@@ -98,6 +106,7 @@ feature -- Simple Substitution (no Mustache)
 			-- Example: tpl.substitute ("Hello $name!", <<["$name", "Alice"]>>)
 		require
 			template_not_empty: not a_template.is_empty
+			replacements_not_void: a_replacements /= Void
 		do
 			Result := a_template.twin
 			across a_replacements as r loop
@@ -111,6 +120,9 @@ feature -- Conditional Rendering
 
 	render_if (a_condition: BOOLEAN; a_template: STRING; a_vars: ARRAY [TUPLE [name: STRING; value: STRING]]): STRING
 			-- Render template only if condition is true, otherwise return empty string.
+		require
+			template_not_empty: not a_template.is_empty
+			vars_not_void: a_vars /= Void
 		do
 			if a_condition then
 				Result := render (a_template, a_vars)
@@ -123,6 +135,10 @@ feature -- Conditional Rendering
 
 	render_choice (a_condition: BOOLEAN; a_true_template, a_false_template: STRING; a_vars: ARRAY [TUPLE [name: STRING; value: STRING]]): STRING
 			-- Render one of two templates based on condition.
+		require
+			true_template_not_empty: not a_true_template.is_empty
+			false_template_not_empty: not a_false_template.is_empty
+			vars_not_void: a_vars /= Void
 		do
 			if a_condition then
 				Result := render (a_true_template, a_vars)
@@ -140,6 +156,7 @@ feature -- List Rendering
 			-- Example: render_list ("<li>{{name}}</li>", <<vars1, vars2, vars3>>)
 		require
 			template_not_empty: not a_template.is_empty
+			items_not_void: a_items /= Void
 		local
 			l_tpl: SIMPLE_TEMPLATE
 		do
@@ -159,9 +176,15 @@ feature -- File Output
 
 	render_to_file (a_template: STRING; a_vars: ARRAY [TUPLE [name: STRING; value: STRING]]; a_output_path: STRING)
 			-- Render template and write to file.
+			-- File is created or overwritten.
 		require
 			template_not_empty: not a_template.is_empty
+			vars_not_void: a_vars /= Void
 			path_not_empty: not a_output_path.is_empty
+			-- ASSAULT: expose V16 CRITICAL path traversal for writes
+			no_parent_traversal: not a_output_path.has_substring ("..")
+			no_absolute_unix: a_output_path.count > 0 implies a_output_path.item (1) /= '/'
+			no_windows_drive: a_output_path.count >= 2 implies not (a_output_path.item (2) = ':')
 		local
 			l_content: STRING
 			l_file: PLAIN_TEXT_FILE
