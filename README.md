@@ -4,9 +4,15 @@
 
 # simple_template
 
-**[Documentation](https://simple-eiffel.github.io/simple_template/)**
+**[Documentation](https://simple-eiffel.github.io/simple_template/)** | **[GitHub](https://github.com/simple-eiffel/simple_template)**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Eiffel](https://img.shields.io/badge/Eiffel-25.02-blue.svg)](https://www.eiffel.org/)
+[![Design by Contract](https://img.shields.io/badge/DbC-enforced-orange.svg)]()
 
 Mustache-style template engine for Eiffel with automatic HTML escaping and full section support.
+
+Part of the [Simple Eiffel](https://github.com/simple-eiffel) ecosystem.
 
 ## Features
 
