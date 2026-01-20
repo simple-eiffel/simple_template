@@ -85,6 +85,14 @@ feature {NONE} -- Initialization
 			-- File Output
 			run_test (agent tests.test_render_to_file, "test_render_to_file")
 
+			-- Encoding Detection (simple_encoding integration)
+			run_test (agent tests.test_has_utf8_bom, "test_has_utf8_bom")
+			run_test (agent tests.test_strip_bom, "test_strip_bom")
+
+			-- Object Rendering (simple_reflection integration)
+			run_test (agent tests.test_set_variables_from_object, "test_set_variables_from_object")
+			run_test (agent tests.test_render_with_object, "test_render_with_object")
+
 			-- Adversarial Tests
 			run_adversarial_tests
 

@@ -68,6 +68,117 @@ feature {NONE} -- Initialization
 			l_file.close
 		end
 
+feature -- Encoding Detection (simple_encoding integration)
+
+	detect_file_encoding (a_path: STRING): STRING
+			-- Detect encoding of template file.
+		require
+			path_not_empty: not a_path.is_empty
+		local
+			l_file: PLAIN_TEXT_FILE
+			l_content: STRING
+			l_detector: SIMPLE_ENCODING_DETECTOR
+		do
+			create l_file.make_with_name (a_path)
+			if l_file.exists and then l_file.is_readable then
+				l_file.open_read
+				create l_content.make (l_file.count.min (1024))
+				l_file.read_stream (l_file.count.min (1024))
+				l_content := l_file.last_string
+				l_file.close
+				create l_detector.make
+				if attached l_detector.detect_encoding (l_content) as l_enc then
+					Result := l_enc.to_string_8
+				else
+					Result := "Unknown"
+				end
+			else
+				Result := "Unknown"
+			end
+		ensure
+			result_exists: Result /= Void
+		end
+
+	has_utf8_bom (a_content: STRING): BOOLEAN
+			-- Does `a_content` start with UTF-8 BOM?
+		require
+			content_not_void: a_content /= Void
+		local
+			l_detector: SIMPLE_ENCODING_DETECTOR
+		do
+			create l_detector.make
+			Result := l_detector.has_utf8_bom (a_content)
+		end
+
+	strip_bom (a_content: STRING): STRING
+			-- Return `a_content` with BOM removed if present.
+		require
+			content_not_void: a_content /= Void
+		local
+			l_detector: SIMPLE_ENCODING_DETECTOR
+		do
+			create l_detector.make
+			Result := l_detector.strip_bom (a_content)
+		ensure
+			result_exists: Result /= Void
+		end
+
+feature -- Object Rendering (simple_reflection integration)
+
+	set_variables_from_object (a_object: ANY)
+			-- Set template variables from object fields.
+			-- Each field becomes a variable with its value converted to string.
+		require
+			object_exists: a_object /= Void
+		local
+			l_reflected: SIMPLE_REFLECTED_OBJECT
+			l_field: SIMPLE_FIELD_INFO
+			l_value: detachable ANY
+			i: INTEGER
+		do
+			create l_reflected.make (a_object)
+			from
+				i := 1
+			until
+				i > l_reflected.type_info.fields.count
+			loop
+				l_field := l_reflected.type_info.fields [i]
+				l_value := l_field.value (a_object)
+				set_variable (l_field.name.to_string_8, value_to_string (l_value))
+				i := i + 1
+			end
+		end
+
+	render_with_object (a_object: ANY): STRING
+			-- Render template using object fields as variables.
+		require
+			object_exists: a_object /= Void
+		do
+			clear_variables
+			set_variables_from_object (a_object)
+			Result := render
+		ensure
+			result_exists: Result /= Void
+		end
+
+feature {NONE} -- Value Conversion
+
+	value_to_string (a_value: detachable ANY): STRING
+			-- Convert value to string representation for templates.
+		do
+			if a_value = Void then
+				Result := ""
+			elseif attached {BOOLEAN} a_value as l_bool then
+				Result := if l_bool then "true" else "false" end
+			elseif attached {READABLE_STRING_GENERAL} a_value as l_str then
+				Result := l_str.to_string_8
+			else
+				Result := a_value.out
+			end
+		ensure
+			result_exists: Result /= Void
+		end
+
 feature -- Configuration
 
 	set_escape_html (a_enabled: BOOLEAN)

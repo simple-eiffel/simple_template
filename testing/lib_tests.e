@@ -544,4 +544,76 @@ feature -- Test: File Output
 			end
 		end
 
+feature -- Test: Encoding Detection (simple_encoding integration)
+
+	test_has_utf8_bom
+			-- Test UTF-8 BOM detection.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.has_utf8_bom"
+		local
+			tpl: SIMPLE_TEMPLATE
+			bom_content: STRING
+		do
+			create tpl.make
+			-- Create content with UTF-8 BOM
+			create bom_content.make (10)
+			bom_content.append_character ((0xEF).to_character_8)
+			bom_content.append_character ((0xBB).to_character_8)
+			bom_content.append_character ((0xBF).to_character_8)
+			bom_content.append ("Hello")
+			assert_true ("has bom", tpl.has_utf8_bom (bom_content))
+			assert_false ("no bom", tpl.has_utf8_bom ("Hello"))
+		end
+
+	test_strip_bom
+			-- Test BOM stripping.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.strip_bom"
+		local
+			tpl: SIMPLE_TEMPLATE
+			bom_content: STRING
+		do
+			create tpl.make
+			create bom_content.make (10)
+			bom_content.append_character ((0xEF).to_character_8)
+			bom_content.append_character ((0xBB).to_character_8)
+			bom_content.append_character ((0xBF).to_character_8)
+			bom_content.append ("Hello")
+			assert_strings_equal ("bom stripped", "Hello", tpl.strip_bom (bom_content))
+			assert_strings_equal ("no bom unchanged", "Hello", tpl.strip_bom ("Hello"))
+		end
+
+feature -- Test: Object Rendering (simple_reflection integration)
+
+	test_set_variables_from_object
+			-- Test setting variables from object fields.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.set_variables_from_object"
+		local
+			tpl: SIMPLE_TEMPLATE
+			person: TEST_PERSON
+		do
+			create tpl.make_from_string ("{{name}} is {{age}} years old")
+			create person.make ("Alice", 30)
+			tpl.set_variables_from_object (person)
+			assert_true ("has name", tpl.has_variable ("name"))
+			assert_true ("has age", tpl.has_variable ("age"))
+		end
+
+	test_render_with_object
+			-- Test rendering template from object.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.render_with_object"
+		local
+			tpl: SIMPLE_TEMPLATE
+			person: TEST_PERSON
+			l_result: STRING
+		do
+			create tpl.make_from_string ("{{name}} is {{age}} years old")
+			create person.make ("Bob", 25)
+			l_result := tpl.render_with_object (person)
+			assert_string_contains ("has name", l_result, "Bob")
+			assert_string_contains ("has age", l_result, "25")
+		end
+
 end
