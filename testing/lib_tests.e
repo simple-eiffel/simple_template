@@ -11,6 +11,14 @@ class
 inherit
 	TEST_SET_BASE
 
+feature {NONE} -- Test Fixtures
+
+	Test_template_path: STRING = "test_quick_template.txt"
+			-- Path to test template file.
+
+	Test_output_path: STRING = "test_quick_output.txt"
+			-- Path to test output file.
+
 feature -- Test: Initialization
 
 	test_make
@@ -816,5 +824,378 @@ feature -- Test: Compilation (Phase 3)
 			-- Should have evicted some entries
 			assert_integers_equal ("at capacity", 3, cache.count)
 		end
+
+feature -- Test QUICK: Basic Rendering
+
+	test_quick_make
+			-- Test quick facade initialization.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.make"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+		do
+			create q.make
+			-- Just verify it creates without error
+			assert ("created", q /= Void)
+		end
+
+	test_quick_render_basic
+			-- Test basic one-liner render with variables.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render ("Hello {{name}}!", <<["name", "World"]>>)
+			assert_strings_equal ("render_basic", "Hello World!", l_result)
+		end
+
+	test_quick_render_multiple_vars
+			-- Test render with multiple variables.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render ("{{greeting}}, {{name}}! Welcome to {{place}}.",
+				<<["greeting", "Hello"], ["name", "Alice"], ["place", "Eiffel"]>>)
+			assert_strings_equal ("multiple_vars", "Hello, Alice! Welcome to Eiffel.", l_result)
+		end
+
+	test_quick_render_empty_vars
+			-- Test render with no variables needed.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render ("Plain text, no variables.", <<>>)
+			assert_strings_equal ("no_vars", "Plain text, no variables.", l_result)
+		end
+
+	test_quick_render_html_escaping
+			-- Test that HTML is escaped by default.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render ("Value: {{val}}", <<["val", "<script>alert('xss')</script>"]>>)
+			assert ("html_escaped", not l_result.has_substring ("<script>"))
+			assert ("has_lt", l_result.has_substring ("&lt;"))
+		end
+
+	test_quick_render_raw
+			-- Test render without HTML escaping.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_raw"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render_raw ("Value: {{val}}", <<["val", "<b>bold</b>"]>>)
+			assert ("not_escaped", l_result.has_substring ("<b>bold</b>"))
+		end
+
+feature -- Test QUICK: File Operations
+
+	test_quick_file_basic
+			-- Test rendering from file.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.file"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+			l_file: SIMPLE_FILE
+		do
+			-- Setup: create test template file
+			create l_file.make (Test_template_path)
+			l_file.set_content ("Hello {{name}}, welcome to {{place}}!").do_nothing
+
+			-- Test
+			create q.make
+			l_result := q.file (Test_template_path, <<["name", "Alice"], ["place", "Eiffel"]>>)
+			assert_strings_equal ("file_render", "Hello Alice, welcome to Eiffel!", l_result)
+
+			-- Cleanup
+			l_file.delete.do_nothing
+		end
+
+	test_quick_render_to_file
+			-- Test rendering to file.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_to_file"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_file: SIMPLE_FILE
+			l_content: STRING_32
+		do
+			create q.make
+			q.render_to_file ("Output: {{value}}", <<["value", "42"]>>, Test_output_path)
+
+			-- Verify file was created with correct content
+			create l_file.make (Test_output_path)
+			l_content := l_file.content
+
+			assert_strings_equal ("file_content", "Output: 42", l_content)
+
+			-- Cleanup
+			l_file.delete.do_nothing
+		end
+
+	test_quick_render_to_file_overwrites
+			-- Test that render_to_file overwrites existing file.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_to_file"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_file: SIMPLE_FILE
+			l_content: STRING_32
+		do
+			create q.make
+
+			-- Write first content
+			q.render_to_file ("First: {{val}}", <<["val", "1"]>>, Test_output_path)
+
+			-- Overwrite with second content
+			q.render_to_file ("Second: {{val}}", <<["val", "2"]>>, Test_output_path)
+
+			-- Verify file has second content
+			create l_file.make (Test_output_path)
+			l_content := l_file.content
+
+			assert_strings_equal ("overwritten", "Second: 2", l_content)
+
+			-- Cleanup
+			l_file.delete.do_nothing
+		end
+
+feature -- Test QUICK: Substitution
+
+	test_quick_substitute_basic
+			-- Test simple string substitution.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.substitute"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.substitute ("Hello $name!", <<["$name", "Alice"]>>)
+			assert_strings_equal ("substitute_basic", "Hello Alice!", l_result)
+		end
+
+	test_quick_substitute_multiple
+			-- Test multiple substitutions.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.substitute"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.substitute ("$greeting $name, welcome to $place!",
+				<<["$greeting", "Hi"], ["$name", "Bob"], ["$place", "the party"]>>)
+			assert_strings_equal ("substitute_multi", "Hi Bob, welcome to the party!", l_result)
+		end
+
+	test_quick_substitute_no_match
+			-- Test substitution when pattern not found.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.substitute"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.substitute ("Hello world!", <<["$notfound", "ignored"]>>)
+			assert_strings_equal ("no_match", "Hello world!", l_result)
+		end
+
+feature -- Test QUICK: Conditional Rendering
+
+	test_quick_render_if_true
+			-- Test conditional render when condition is true.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_if"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render_if (True, "Hello {{name}}!", <<["name", "World"]>>)
+			assert_strings_equal ("if_true", "Hello World!", l_result)
+		end
+
+	test_quick_render_if_false
+			-- Test conditional render when condition is false.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_if"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render_if (False, "Hello {{name}}!", <<["name", "World"]>>)
+			assert_strings_equal ("if_false", "", l_result)
+		end
+
+	test_quick_render_choice_true
+			-- Test choice render when condition is true.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_choice"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render_choice (True, "Yes: {{val}}", "No: {{val}}", <<["val", "X"]>>)
+			assert_strings_equal ("choice_true", "Yes: X", l_result)
+		end
+
+	test_quick_render_choice_false
+			-- Test choice render when condition is false.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_choice"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+		do
+			create q.make
+			l_result := q.render_choice (False, "Yes: {{val}}", "No: {{val}}", <<["val", "X"]>>)
+			assert_strings_equal ("choice_false", "No: X", l_result)
+		end
+
+feature -- Test QUICK: List Rendering
+
+	test_quick_render_list_basic
+			-- Test list rendering with multiple items.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_list"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+			l_items: ARRAY [ARRAY [TUPLE [name: STRING; value: STRING]]]
+		do
+			create q.make
+			l_items := <<
+				<<["name", "Alice"]>>,
+				<<["name", "Bob"]>>,
+				<<["name", "Charlie"]>>
+			>>
+			l_result := q.render_list ("<li>{{name}}</li>", l_items)
+			assert_strings_equal ("list_basic", "<li>Alice</li><li>Bob</li><li>Charlie</li>", l_result)
+		end
+
+	test_quick_render_list_empty
+			-- Test list rendering with empty list.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_list"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+			l_items: ARRAY [ARRAY [TUPLE [name: STRING; value: STRING]]]
+		do
+			create q.make
+			create l_items.make_empty
+			l_result := q.render_list ("<li>{{name}}</li>", l_items)
+			assert_strings_equal ("list_empty", "", l_result)
+		end
+
+	test_quick_render_list_multiple_vars
+			-- Test list rendering with multiple variables per item.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.render_list"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_result: STRING
+			l_items: ARRAY [ARRAY [TUPLE [name: STRING; value: STRING]]]
+		do
+			create q.make
+			l_items := <<
+				<<["product", "Apple"], ["price", "$1.00"]>>,
+				<<["product", "Banana"], ["price", "$0.50"]>>
+			>>
+			l_result := q.render_list ("{{product}}: {{price}}%N", l_items)
+			assert_strings_equal ("list_multi_vars", "Apple: $1.00%NBanana: $0.50%N", l_result)
+		end
+
+feature -- Test QUICK: Validation
+
+	test_quick_variables_in
+			-- Test extracting variable names from template.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.variables_in"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_vars: ARRAYED_LIST [STRING]
+			l_found_name, l_found_order: BOOLEAN
+			l_var: STRING
+		do
+			create q.make
+			l_vars := q.variables_in ("Hello {{name}}, your order {{order_id}} is ready!")
+			assert_integers_equal ("var_count", 2, l_vars.count)
+			-- Check using string comparison since has() may use reference equality
+			from l_vars.start until l_vars.after loop
+				l_var := l_vars.item
+				if l_var.same_string ("name") then
+					l_found_name := True
+				elseif l_var.same_string ("order_id") then
+					l_found_order := True
+				end
+				l_vars.forth
+			end
+			assert ("has_name", l_found_name)
+			assert ("has_order_id", l_found_order)
+		end
+
+	test_quick_variables_in_no_vars
+			-- Test extracting variables from template with none.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.variables_in"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+			l_vars: ARRAYED_LIST [STRING]
+		do
+			create q.make
+			l_vars := q.variables_in ("Plain text, no variables here.")
+			assert_integers_equal ("no_vars", 0, l_vars.count)
+		end
+
+	test_quick_is_valid_good
+			-- Test validity check on good template.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.is_valid"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+		do
+			create q.make
+			assert ("valid_template", q.is_valid ("Hello {{name}}!"))
+		end
+
+	test_quick_is_valid_plain
+			-- Test validity check on plain text.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE_QUICK}.is_valid"
+		local
+			q: SIMPLE_TEMPLATE_QUICK
+		do
+			create q.make
+			assert ("valid_plain", q.is_valid ("Plain text, no tags."))
+		end
+
+feature {NONE} -- In-system
+
+	quick: detachable SIMPLE_TEMPLATE_QUICK
+			-- Bring class in system.
 
 end

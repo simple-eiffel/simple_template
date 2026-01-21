@@ -5,21 +5,8 @@ note
 class
 	ADVERSARIAL_TESTS
 
-create
-	make
-
-feature {NONE} -- Initialization
-
-	make
-		do
-			passed := 0
-			failed := 0
-			risk := 0
-		end
-
-feature -- Counters
-
-	passed, failed, risk: INTEGER
+inherit
+	TEST_SET_BASE
 
 feature -- V11: Stale Error Tests
 
@@ -39,29 +26,13 @@ feature -- V11: Stale Error Tests
 			-- This render will exceed partial depth and set last_error
 			l_tpl.render.do_nothing
 
-			if not l_tpl.is_valid then
-				-- Good, error was set. Now the bug test:
-				-- Set a simple template with NO error-producing content
-				l_tpl := l_tpl -- Can't change template_source directly, create new
-				create l_tpl.make_from_string ("Simple text")
-				l_tpl.render.do_nothing
+			assert ("error_was_set", not l_tpl.is_valid)
 
-				if l_tpl.is_valid then
-					passed := passed + 1
-					print ("  PASS: test_v11_stale_error_after_partial_depth%N")
-				else
-					-- BUG! Error persisted from previous render
-					failed := failed + 1
-					print ("  FAIL: test_v11_stale_error_after_partial_depth - stale error persists%N")
-				end
-			else
-				risk := risk + 1
-				print ("  RISK: test_v11_stale_error_after_partial_depth - partial depth not triggered%N")
-			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_v11_stale_error_after_partial_depth - exception%N")
-			passed := passed -- Keep for retry safety
+			-- Now the bug test: create new template with NO error-producing content
+			create l_tpl.make_from_string ("Simple text")
+			l_tpl.render.do_nothing
+
+			assert ("new_template_valid", l_tpl.is_valid)
 		end
 
 	test_v11_error_cleared_on_empty_template
@@ -74,16 +45,7 @@ feature -- V11: Stale Error Tests
 			-- Empty template_source from make
 			l_tpl.render.do_nothing
 
-			if l_tpl.is_valid then
-				passed := passed + 1
-				print ("  PASS: test_v11_error_cleared_on_empty_template%N")
-			else
-				failed := failed + 1
-				print ("  FAIL: test_v11_error_cleared_on_empty_template - empty has error%N")
-			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_v11_error_cleared_on_empty_template - exception%N")
+			assert ("empty_template_valid", l_tpl.is_valid)
 		end
 
 feature -- V08: Empty Variable Name Tests
@@ -100,13 +62,10 @@ feature -- V08: Empty Variable Name Tests
 				create l_tpl.make_from_string ("Hello {{}} World")
 				l_result := l_tpl.render
 				-- If we get here, the precondition didn't fire
-				risk := risk + 1
-				print ("  RISK: test_v08_empty_variable_name - no precondition fired, got: " + l_result + "%N")
+				assert ("precondition_should_fire", False)
 			end
+			-- If we retried, we're here because exception was caught - test passes
 		rescue
-			-- Expected: precondition violation
-			passed := passed + 1
-			print ("  PASS: test_v08_empty_variable_name_in_template - precondition caught empty name%N")
 			l_retried := True
 			retry
 		end
@@ -124,12 +83,9 @@ feature -- V09: Empty Section Name Tests
 			if not l_retried then
 				create l_tpl.make_from_string ("{{#}}content{{/}}")
 				l_result := l_tpl.render
-				risk := risk + 1
-				print ("  RISK: test_v09_empty_section_name - no precondition fired, got: " + l_result + "%N")
+				assert ("precondition_should_fire", False)
 			end
 		rescue
-			passed := passed + 1
-			print ("  PASS: test_v09_empty_section_name_in_template - precondition caught empty section%N")
 			l_retried := True
 			retry
 		end
@@ -141,12 +97,9 @@ feature -- V10: Partial State Pollution Tests
 		local
 			l_parent: SIMPLE_TEMPLATE
 			l_partial: SIMPLE_TEMPLATE
-			l_partial_vars_before: INTEGER
-			l_partial_vars_after: INTEGER
 		do
 			-- Create partial with NO variables
 			create l_partial.make_from_string ("Partial content: {{passed_var}}")
-			l_partial_vars_before := 0 -- Partial starts with no variables
 
 			-- Create parent that passes variable to partial
 			create l_parent.make_from_string ("Before {{>child}} After")
@@ -157,17 +110,7 @@ feature -- V10: Partial State Pollution Tests
 			l_parent.render.do_nothing
 
 			-- Check if partial now has variables it shouldn't have
-			if l_partial.has_variable ("passed_var") then
-				-- BUG! Partial state was polluted
-				failed := failed + 1
-				print ("  FAIL: test_v10_partial_variables_not_modified - partial state polluted%N")
-			else
-				passed := passed + 1
-				print ("  PASS: test_v10_partial_variables_not_modified%N")
-			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_v10_partial_variables_not_modified - exception%N")
+			assert ("partial_not_polluted", not l_partial.has_variable ("passed_var"))
 		end
 
 feature -- M06: Mutation Killer Tests
@@ -183,7 +126,6 @@ feature -- M06: Mutation Killer Tests
 			i: INTEGER
 		do
 			-- Create chain of exactly 100 partials (at limit, should trigger error)
-			-- Partial 1..99 call the next, partial 100 tries to call partial 101 (doesn't exist)
 			-- The chain is: tpl -> p1 -> p2 -> ... -> p99 -> p100
 			-- At depth 100, we should get error
 
@@ -217,18 +159,7 @@ feature -- M06: Mutation Killer Tests
 
 			-- At depth 100 (p100), partial_depth = 100, which is >= Max_partial_depth
 			-- With correct code (>=), this triggers error
-			-- With mutated code (>), this would NOT trigger error at 100
-			if not l_tpl.is_valid then
-				passed := passed + 1
-				print ("  PASS: test_m06_partial_depth_exactly_at_limit - depth 100 triggers limit%N")
-			else
-				-- Bug! The >= was mutated to >
-				failed := failed + 1
-				print ("  FAIL: test_m06_partial_depth_exactly_at_limit - depth 100 didn't trigger limit%N")
-			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_m06_partial_depth_exactly_at_limit - exception%N")
+			assert ("depth_limit_triggered", not l_tpl.is_valid)
 		end
 
 feature -- V15: Path Traversal Read Tests
@@ -242,12 +173,9 @@ feature -- V15: Path Traversal Read Tests
 			if not l_retried then
 				create l_tpl.make_from_file ("../etc/passwd")
 				-- If we get here, path traversal was allowed!
-				failed := failed + 1
-				print ("  FAIL: test_v15_path_traversal_parent_dir - path traversal allowed!%N")
+				assert ("path_traversal_blocked", False)
 			end
 		rescue
-			passed := passed + 1
-			print ("  PASS: test_v15_path_traversal_parent_dir - precondition blocked traversal%N")
 			l_retried := True
 			retry
 		end
@@ -260,12 +188,9 @@ feature -- V15: Path Traversal Read Tests
 		do
 			if not l_retried then
 				create l_tpl.make_from_file ("/etc/passwd")
-				failed := failed + 1
-				print ("  FAIL: test_v15_absolute_unix_path - absolute path allowed!%N")
+				assert ("absolute_path_blocked", False)
 			end
 		rescue
-			passed := passed + 1
-			print ("  PASS: test_v15_absolute_unix_path - precondition blocked absolute path%N")
 			l_retried := True
 			retry
 		end
@@ -278,12 +203,9 @@ feature -- V15: Path Traversal Read Tests
 		do
 			if not l_retried then
 				create l_tpl.make_from_file ("C:\Windows\System32\config")
-				failed := failed + 1
-				print ("  FAIL: test_v15_absolute_windows_path - Windows absolute allowed!%N")
+				assert ("windows_path_blocked", False)
 			end
 		rescue
-			passed := passed + 1
-			print ("  PASS: test_v15_absolute_windows_path - precondition blocked Windows path%N")
 			l_retried := True
 			retry
 		end
@@ -300,12 +222,9 @@ feature -- V16: Path Traversal Write Tests
 				create l_tpl.make_from_string ("malicious content")
 				l_tpl.render_to_file ("../../../important.txt")
 				-- If we get here, path traversal for WRITE was allowed!
-				failed := failed + 1
-				print ("  FAIL: test_v16_path_traversal_write - CRITICAL: path traversal write allowed!%N")
+				assert ("write_traversal_blocked", False)
 			end
 		rescue
-			passed := passed + 1
-			print ("  PASS: test_v16_path_traversal_write - precondition blocked write traversal%N")
 			l_retried := True
 			retry
 		end
@@ -320,16 +239,7 @@ feature -- Empty Input Tests
 		do
 			create l_tpl.make_from_string ("")
 			l_result := l_tpl.render
-			if l_result.is_empty then
-				passed := passed + 1
-				print ("  PASS: test_empty_string_template%N")
-			else
-				failed := failed + 1
-				print ("  FAIL: test_empty_string_template - got non-empty: " + l_result + "%N")
-			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_empty_string_template - exception%N")
+			assert ("empty_renders_empty", l_result.is_empty)
 		end
 
 feature -- Special Character Tests
@@ -340,21 +250,12 @@ feature -- Special Character Tests
 			l_tpl: SIMPLE_TEMPLATE
 			l_template: STRING
 			l_result: STRING
-			l_retried: BOOLEAN
 		do
-			if not l_retried then
-				l_template := "Hello%UWorld"
-				create l_tpl.make_from_string (l_template)
-				l_result := l_tpl.render
-				-- If we get here, null byte was handled somehow
-				risk := risk + 1
-				print ("  RISK: test_template_with_null_byte - null handled, len=" + l_result.count.out + "%N")
-			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_template_with_null_byte - exception on null byte%N")
-			l_retried := True
-			retry
+			l_template := "Hello%UWorld"
+			create l_tpl.make_from_string (l_template)
+			l_result := l_tpl.render
+			-- Null byte should be handled gracefully
+			assert ("null_byte_handled", l_result.count > 0)
 		end
 
 feature -- Boundary Tests
@@ -369,16 +270,7 @@ feature -- Boundary Tests
 			create l_template.make_filled ('X', 100000)
 			create l_tpl.make_from_string (l_template)
 			l_result := l_tpl.render
-			if l_result.count = 100000 then
-				passed := passed + 1
-				print ("  PASS: test_very_long_template (100K chars)%N")
-			else
-				failed := failed + 1
-				print ("  FAIL: test_very_long_template - expected 100000, got " + l_result.count.out + "%N")
-			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_very_long_template - exception%N")
+			assert_integers_equal ("100k_chars", 100000, l_result.count)
 		end
 
 	test_very_long_variable_name
@@ -394,16 +286,7 @@ feature -- Boundary Tests
 			create l_tpl.make_from_string (l_template)
 			l_tpl.set_variable (l_var_name, "VALUE")
 			l_result := l_tpl.render
-			if l_result.same_string ("VALUE") then
-				passed := passed + 1
-				print ("  PASS: test_very_long_variable_name (10K chars)%N")
-			else
-				failed := failed + 1
-				print ("  FAIL: test_very_long_variable_name - unexpected result%N")
-			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_very_long_variable_name - exception%N")
+			assert_strings_equal ("long_var_name", "VALUE", l_result)
 		end
 
 feature -- Malformed Template Tests
@@ -416,12 +299,8 @@ feature -- Malformed Template Tests
 		do
 			create l_tpl.make_from_string ("Hello {{name World")
 			l_result := l_tpl.render
-			-- Should degrade gracefully, outputting characters
-			risk := risk + 1
-			print ("  RISK: test_unclosed_variable_tag - got: " + l_result + "%N")
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_unclosed_variable_tag - exception%N")
+			-- Should degrade gracefully, not crash
+			assert ("unclosed_handled", l_result.count > 0)
 		end
 
 	test_unclosed_section
@@ -433,11 +312,8 @@ feature -- Malformed Template Tests
 			create l_tpl.make_from_string ("{{#section}}content without end")
 			l_tpl.set_section ("section", True)
 			l_result := l_tpl.render
-			risk := risk + 1
-			print ("  RISK: test_unclosed_section - got: " + l_result + "%N")
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_unclosed_section - exception%N")
+			-- Should degrade gracefully, not crash
+			assert ("unclosed_section_handled", l_result.count > 0)
 		end
 
 feature -- Directive Adversarial Tests
@@ -452,18 +328,11 @@ feature -- Directive Adversarial Tests
 			if not l_retried then
 				create l_parser.make
 				l_directive := l_parser.parse_if ("#if   then%Ncontent%N#end")
-				-- Should parse but empty condition should evaluate to false
-				if l_directive = Void then
-					passed := passed + 1
-					print ("  PASS: test_directive_empty_condition - parser rejected empty condition%N")
-				else
-					risk := risk + 1
-					print ("  RISK: test_directive_empty_condition - empty condition accepted%N")
-				end
+				-- Empty condition should be rejected or evaluate to false
+				assert ("empty_condition_rejected", l_directive = Void)
 			end
 		rescue
-			passed := passed + 1
-			print ("  PASS: test_directive_empty_condition - exception on empty condition%N")
+			-- Exception on empty condition is acceptable
 			l_retried := True
 			retry
 		end
@@ -477,46 +346,30 @@ feature -- Directive Adversarial Tests
 			l_context: ST_CONTEXT
 			l_result: STRING
 			i: INTEGER
-			l_retried: BOOLEAN
 		do
-			if not l_retried then
-				create l_parser.make
-				create l_context.make
+			create l_parser.make
+			create l_context.make
 
-				-- Build 50 nested #if directives
-				create l_template.make (2000)
-				from i := 1 until i > 50 loop
-					l_template.append ("#if x then%N")
-					i := i + 1
-				end
-				l_template.append ("DEEP")
-				from i := 1 until i > 50 loop
-					l_template.append ("%N#end")
-					i := i + 1
-				end
-
-				l_context.set_variable ("x", True)
-				l_directive := l_parser.parse_if (l_template)
-
-				if attached l_directive as d then
-					l_result := d.execute (l_context)
-					if l_result.has_substring ("DEEP") then
-						passed := passed + 1
-						print ("  PASS: test_directive_nested_depth - 50 levels handled%N")
-					else
-						risk := risk + 1
-						print ("  RISK: test_directive_nested_depth - deep content not rendered%N")
-					end
-				else
-					risk := risk + 1
-					print ("  RISK: test_directive_nested_depth - parse failed%N")
-				end
+			-- Build 50 nested #if directives
+			create l_template.make (2000)
+			from i := 1 until i > 50 loop
+				l_template.append ("#if x then%N")
+				i := i + 1
 			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_directive_nested_depth - exception on deep nesting%N")
-			l_retried := True
-			retry
+			l_template.append ("DEEP")
+			from i := 1 until i > 50 loop
+				l_template.append ("%N#end")
+				i := i + 1
+			end
+
+			l_context.set_variable ("x", True)
+			l_directive := l_parser.parse_if (l_template)
+
+			assert ("deep_nesting_parsed", attached l_directive)
+			if attached l_directive as d then
+				l_result := d.execute (l_context)
+				assert ("deep_content_rendered", l_result.has_substring ("DEEP"))
+			end
 		end
 
 	test_directive_special_chars_in_content
@@ -526,86 +379,19 @@ feature -- Directive Adversarial Tests
 			l_directive: detachable ST_IF_DIRECTIVE
 			l_context: ST_CONTEXT
 			l_result: STRING
-			l_retried: BOOLEAN
 		do
-			if not l_retried then
-				create l_parser.make
-				create l_context.make
-				l_context.set_variable ("show", True)
+			create l_parser.make
+			create l_context.make
+			l_context.set_variable ("show", True)
 
-				l_directive := l_parser.parse_if ("#if show then%N<script>alert('xss')</script>%N#end")
+			l_directive := l_parser.parse_if ("#if show then%N<script>alert('xss')</script>%N#end")
 
-				if attached l_directive as d then
-					l_result := d.execute (l_context)
-					if l_result.has_substring ("<script>") then
-						risk := risk + 1
-						print ("  RISK: test_directive_special_chars_in_content - script tag passed through%N")
-					else
-						passed := passed + 1
-						print ("  PASS: test_directive_special_chars_in_content - script tag filtered%N")
-					end
-				else
-					failed := failed + 1
-					print ("  FAIL: test_directive_special_chars_in_content - parse failed%N")
-				end
+			assert ("special_chars_parsed", attached l_directive)
+			if attached l_directive as d then
+				l_result := d.execute (l_context)
+				-- Content should be preserved (escaping is caller's responsibility)
+				assert ("content_rendered", l_result.count > 0)
 			end
-		rescue
-			failed := failed + 1
-			print ("  FAIL: test_directive_special_chars_in_content - exception%N")
-			l_retried := True
-			retry
-		end
-
-feature -- Run All
-
-	run_all
-		do
-			print ("%N=== Adversarial Tests ===%N%N")
-
-			print ("-- V11: Stale Error Tests --%N")
-			test_v11_stale_error_after_partial_depth
-			test_v11_error_cleared_on_empty_template
-
-			print ("%N-- V08: Empty Variable Name Tests --%N")
-			test_v08_empty_variable_name_in_template
-
-			print ("%N-- V09: Empty Section Name Tests --%N")
-			test_v09_empty_section_name_in_template
-
-			print ("%N-- V10: Partial State Pollution Tests --%N")
-			test_v10_partial_variables_not_modified
-
-			print ("%N-- M06: Mutation Killer Tests --%N")
-			test_m06_partial_depth_exactly_at_limit
-
-			print ("%N-- V15: Path Traversal Read Tests --%N")
-			test_v15_path_traversal_parent_dir
-			test_v15_absolute_unix_path
-			test_v15_absolute_windows_path
-
-			print ("%N-- V16: Path Traversal Write Tests --%N")
-			test_v16_path_traversal_write
-
-			print ("%N-- Empty Input Tests --%N")
-			test_empty_string_template
-
-			print ("%N-- Special Character Tests --%N")
-			test_template_with_null_byte
-
-			print ("%N-- Boundary Tests --%N")
-			test_very_long_template
-			test_very_long_variable_name
-
-			print ("%N-- Malformed Template Tests --%N")
-			test_unclosed_variable_tag
-			test_unclosed_section
-
-			print ("%N-- Directive Adversarial Tests --%N")
-			test_directive_empty_condition
-			test_directive_nested_depth
-			test_directive_special_chars_in_content
-
-			print ("%N=== Adversarial Summary: " + passed.out + " pass, " + failed.out + " fail, " + risk.out + " risk ===%N")
 		end
 
 end

@@ -109,14 +109,35 @@ feature {NONE} -- Initialization
 			run_test (agent tests.test_template_cache, "test_template_cache")
 			run_test (agent tests.test_cache_eviction, "test_cache_eviction")
 
-			-- Adversarial Tests
-			run_adversarial_tests
-
-			-- Stress Tests
-			run_stress_tests
+			-- QUICK Facade Tests
+			run_test (agent tests.test_quick_make, "test_quick_make")
+			run_test (agent tests.test_quick_render_basic, "test_quick_render_basic")
+			run_test (agent tests.test_quick_render_multiple_vars, "test_quick_render_multiple_vars")
+			run_test (agent tests.test_quick_render_empty_vars, "test_quick_render_empty_vars")
+			run_test (agent tests.test_quick_render_html_escaping, "test_quick_render_html_escaping")
+			run_test (agent tests.test_quick_render_raw, "test_quick_render_raw")
+			run_test (agent tests.test_quick_file_basic, "test_quick_file_basic")
+			run_test (agent tests.test_quick_render_to_file, "test_quick_render_to_file")
+			run_test (agent tests.test_quick_render_to_file_overwrites, "test_quick_render_to_file_overwrites")
+			run_test (agent tests.test_quick_substitute_basic, "test_quick_substitute_basic")
+			run_test (agent tests.test_quick_substitute_multiple, "test_quick_substitute_multiple")
+			run_test (agent tests.test_quick_substitute_no_match, "test_quick_substitute_no_match")
+			run_test (agent tests.test_quick_render_if_true, "test_quick_render_if_true")
+			run_test (agent tests.test_quick_render_if_false, "test_quick_render_if_false")
+			run_test (agent tests.test_quick_render_choice_true, "test_quick_render_choice_true")
+			run_test (agent tests.test_quick_render_choice_false, "test_quick_render_choice_false")
+			run_test (agent tests.test_quick_render_list_basic, "test_quick_render_list_basic")
+			run_test (agent tests.test_quick_render_list_empty, "test_quick_render_list_empty")
+			run_test (agent tests.test_quick_render_list_multiple_vars, "test_quick_render_list_multiple_vars")
+			run_test (agent tests.test_quick_variables_in, "test_quick_variables_in")
+			run_test (agent tests.test_quick_variables_in_no_vars, "test_quick_variables_in_no_vars")
+			run_test (agent tests.test_quick_is_valid_good, "test_quick_is_valid_good")
+			run_test (agent tests.test_quick_is_valid_plain, "test_quick_is_valid_plain")
 
 			-- Directive Tests (evolicity-style)
 			run_directive_tests
+
+			-- Note: ADVERSARIAL_TESTS and STRESS_TESTS run via AutoTest
 
 			-- Performance Benchmarks (Phase 4F)
 			run_benchmarks
@@ -135,27 +156,8 @@ feature {NONE} -- Implementation
 
 	passed: INTEGER
 	failed: INTEGER
-	adversarial_tests: ADVERSARIAL_TESTS
-	stress_tests: STRESS_TESTS
 	directive_tests: DIRECTIVE_TESTS
 	benchmarks: PERFORMANCE_BENCHMARKS
-
-	run_adversarial_tests
-			-- Run adversarial test suite.
-		do
-			create adversarial_tests.make
-			adversarial_tests.run_all
-			-- Add adversarial counts to main totals
-			passed := passed + adversarial_tests.passed
-			failed := failed + adversarial_tests.failed
-		end
-
-	run_stress_tests
-			-- Run stress test suite.
-		do
-			create stress_tests.make
-			-- Stress tests print their own output, no counter integration
-		end
 
 	run_benchmarks
 			-- Run performance benchmarks.
@@ -168,7 +170,7 @@ feature {NONE} -- Implementation
 			-- Run directive test suite (evolicity-style directives).
 		do
 			print ("%NDirective Tests (evolicity-style):%N")
-			create directive_tests.make
+			create directive_tests
 
 			-- If Directive Tests
 			run_test (agent directive_tests.test_if_true_condition, "test_if_true_condition")
