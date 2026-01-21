@@ -25,6 +25,15 @@ Part of the [Simple Eiffel](https://github.com/simple-eiffel) ecosystem.
 - **Comments** - `{{! ignored }}` for template documentation
 - **Partials** - Include sub-templates with `{{>partial}}`
 - **Missing variable policies** - Empty, keep placeholder, or error
+- **Evolicity-style directives** - `#if`, `#foreach`, `#across`, `#include`, `#evaluate`
+- **Boolean operators** - `and`, `or`, `not` for complex conditions
+- **File inclusion** - Secure `#include` with path traversal protection
+- **Dynamic evaluation** - `#evaluate` for nested template rendering
+- **AST compilation** - Compile templates once, render many times fast
+- **Template caching** - LRU cache with hit/miss tracking
+- **Expression engine** - Math operations (`+`, `-`, `*`, `/`, `%`)
+- **Filters** - Pipe syntax `{{value|filter:arg}}` with 13 built-in filters
+- **Structured errors** - Error collector with line/column location info
 - **Design by Contract** - Full preconditions/postconditions
 
 ## Installation
@@ -274,12 +283,14 @@ end
 |---------|-------------|
 | `render: STRING` | Render template to string |
 | `render_to_file (path)` | Render and write to file |
+| `render_with_directives: STRING` | Render with directive processing |
 
 ### Query
 
 | Feature | Description |
 |---------|-------------|
 | `has_variable (name): BOOLEAN` | Is variable defined? |
+| `has_directives: BOOLEAN` | Does template contain directives? |
 | `required_variables: LIST` | Extract variable names from template |
 | `is_valid: BOOLEAN` | Is template syntactically valid? |
 | `last_error: STRING` | Last error message |
@@ -371,6 +382,374 @@ This library was designed after researching template engines and the Mustache sp
 | Sections | `#` and `^` | Mustache standard |
 | Comments | `!` | Mustache standard |
 | Partials | `>` | Mustache standard |
+
+## Advanced Directives (Evolicity-style)
+
+In addition to Mustache syntax, simple_template supports evolicity-style directives for more complex logic:
+
+### Conditional Directives
+
+```eiffel
+local
+    ctx: ST_CONTEXT
+    parser: ST_DIRECTIVE_PARSER
+    dir: ST_IF_DIRECTIVE
+do
+    create ctx.make
+    create parser.make
+
+    ctx.set_variable ("logged_in", True)
+    ctx.set_variable ("role", "admin")
+
+    -- Basic if
+    dir := parser.parse_if ("#if logged_in then%NWelcome!%N#end")
+    print (dir.execute (ctx))  -- "Welcome!"
+
+    -- If with else
+    dir := parser.parse_if ("#if admin then%NAdmin panel%N#else%NUser area%N#end")
+
+    -- Comparisons: =, /=, <, >, <=, >=
+    dir := parser.parse_if ("#if count > 5 then%NMany items%N#end")
+
+    -- Boolean operators: and, or, not
+    dir := parser.parse_if ("#if logged_in and role = %"admin%" then%NSuper user%N#end")
+end
+```
+
+### Loop Directives
+
+```eiffel
+local
+    ctx: ST_CONTEXT
+    parser: ST_DIRECTIVE_PARSER
+    dir: ST_FOREACH_DIRECTIVE
+    items: ARRAYED_LIST [STRING]
+do
+    create ctx.make
+    create parser.make
+
+    create items.make (3)
+    items.extend ("apple")
+    items.extend ("banana")
+    items.extend ("cherry")
+    ctx.set_list ("fruits", items)
+
+    -- Foreach loop (Python/PHP style)
+    dir := parser.parse_foreach ("#foreach $item in $fruits loop%N- $item%N#end")
+    print (dir.execute (ctx))
+    -- - apple
+    -- - banana
+    -- - cherry
+
+    -- With index (1-based)
+    dir := parser.parse_foreach ("#foreach $item in $fruits loop%N$loop_index. $item%N#end")
+    -- 1. apple
+    -- 2. banana
+    -- 3. cherry
+end
+```
+
+### Across Directive (Eiffel-style)
+
+```eiffel
+local
+    ctx: ST_CONTEXT
+    parser: ST_DIRECTIVE_PARSER
+    dir: ST_ACROSS_DIRECTIVE
+do
+    -- Across loop (native Eiffel style)
+    dir := parser.parse_across ("#across $numbers as $n loop%NValue: $n%N#end")
+
+    -- With cursor index
+    dir := parser.parse_across ("#across $items as $item loop%N[$cursor_index] $item%N#end")
+end
+```
+
+### Include Directive (File Inclusion)
+
+```eiffel
+-- Include a literal file path
+#include "templates/header.html"
+
+-- Include using a variable
+#include $template_path
+```
+
+**Security**: Path traversal (`..`) and absolute paths are blocked. Files must be relative paths within the template directory.
+
+### Evaluate Directive (Dynamic Templates)
+
+```eiffel
+local
+    ctx: ST_CONTEXT
+    parser: ST_DIRECTIVE_PARSER
+    dir: ST_EVALUATE_DIRECTIVE
+do
+    create ctx.make
+    create parser.make
+
+    -- Store a template in a variable
+    ctx.set_variable ("email_tpl", "Hello {{name}}, your order #{{order_id}} is ready!")
+    ctx.set_variable ("name", "Alice")
+    ctx.set_variable ("order_id", "12345")
+
+    -- Evaluate the template stored in the variable
+    dir := parser.parse_evaluate ("#evaluate $email_tpl")
+    print (dir.execute (ctx))
+    -- "Hello Alice, your order #12345 is ready!"
+
+    -- Or evaluate a literal template directly
+    dir := parser.parse_evaluate ("#evaluate %"Value: {{x}}%"")
+end
+```
+
+### Integrated Directive Rendering
+
+Use `render_with_directives` to process both Mustache syntax and evolicity directives in one pass:
+
+```eiffel
+local
+    tpl: SIMPLE_TEMPLATE
+do
+    create tpl.make_from_string ("[
+        #if logged_in then
+        <h1>Welcome {{name}}!</h1>
+        #else
+        <h1>Please log in</h1>
+        #end
+        {{#items}}
+        <li>{{item_name}}</li>
+        {{/items}}
+    ]")
+
+    tpl.set_variable ("name", "Alice")
+    tpl.set_section ("logged_in", True)
+    -- ... set items list ...
+
+    -- Process directives first, then Mustache
+    print (tpl.render_with_directives)
+
+    -- Check if template has any directives
+    if tpl.has_directives then
+        print ("Template uses evolicity directives")
+    end
+end
+```
+
+### Directive Classes
+
+| Class | Purpose |
+|-------|---------|
+| `ST_CONTEXT` | Execution context with variables and lists |
+| `ST_DIRECTIVE_PARSER` | Parses directive text into objects |
+| `ST_IF_DIRECTIVE` | Conditional rendering |
+| `ST_FOREACH_DIRECTIVE` | PHP/Python-style iteration |
+| `ST_ACROSS_DIRECTIVE` | Eiffel-style iteration |
+| `ST_INCLUDE_DIRECTIVE` | Static file inclusion |
+| `ST_EVALUATE_DIRECTIVE` | Nested template evaluation |
+
+## Compilation and Caching (Phase 3)
+
+For high-performance scenarios where templates are rendered repeatedly, compile templates to an AST once and render many times:
+
+### Basic Compilation
+
+```eiffel
+local
+    tpl: SIMPLE_TEMPLATE
+    compiled: ST_COMPILED_TEMPLATE
+    ctx: ST_EXECUTION_CONTEXT
+do
+    -- Compile once
+    create tpl.make_from_string ("Hello, {{name}}!")
+    compiled := tpl.compile
+
+    -- Render many times with different contexts
+    create ctx.make
+    ctx.set_variable ("name", "Alice")
+    print (compiled.render (ctx))  -- "Hello, Alice!"
+
+    ctx.set_variable ("name", "Bob")
+    print (compiled.render (ctx))  -- "Hello, Bob!"
+end
+```
+
+### Using render_compiled (Auto-caching)
+
+```eiffel
+local
+    tpl: SIMPLE_TEMPLATE
+do
+    create tpl.make_from_string ("Hello, {{name}}!")
+    tpl.set_variable ("name", "World")
+
+    -- First call compiles, subsequent calls use cached AST
+    print (tpl.render_compiled)  -- Compiles then renders
+    tpl.set_variable ("name", "Everyone")
+    print (tpl.render_compiled)  -- Uses cached AST
+end
+```
+
+### Template Cache
+
+For caching multiple templates:
+
+```eiffel
+local
+    cache: ST_TEMPLATE_CACHE
+    compiled: ST_COMPILED_TEMPLATE
+    ctx: ST_EXECUTION_CONTEXT
+do
+    create cache.make (100)  -- Cache up to 100 templates
+
+    -- Get or compile - returns cached if available
+    compiled := cache.get_or_compile ("greeting", "Hello, {{name}}!")
+    compiled := cache.get_or_compile ("farewell", "Goodbye, {{name}}!")
+
+    -- Check cache statistics
+    print ("Hit rate: " + cache.hit_rate.out)
+    print ("Cached: " + cache.count.out)
+
+    -- Render
+    create ctx.make
+    ctx.set_variable ("name", "World")
+    print (compiled.render (ctx))
+end
+```
+
+### Compilation Classes
+
+| Class | Purpose |
+|-------|---------|
+| `ST_COMPILED_TEMPLATE` | Pre-compiled AST ready for fast rendering |
+| `ST_TEMPLATE_COMPILER` | Parses template source into AST |
+| `ST_TEMPLATE_CACHE` | LRU cache for compiled templates |
+| `ST_EXECUTION_CONTEXT` | Execution context for compiled rendering |
+| `ST_NODE` | Abstract base for AST nodes |
+| `ST_TEXT_NODE` | Plain text content |
+| `ST_VARIABLE_NODE` | Variable substitution |
+| `ST_SECTION_NODE` | Conditional/loop sections |
+| `ST_COMMENT_NODE` | Comments (no output) |
+| `ST_PARTIAL_NODE` | Partial template inclusion |
+
+### Boolean Evaluation Rules
+
+| Value Type | Truthy | Falsy |
+|------------|--------|-------|
+| Boolean | `True` | `False` |
+| String | Non-empty | Empty `""` |
+| Integer | Non-zero | `0` |
+| Iterable | Non-empty | Empty |
+| Void | - | Always falsy |
+
+## Expression Engine and Filters (Phase 4)
+
+### Math Expressions
+
+The expression evaluator supports basic math operations:
+
+```eiffel
+local
+    eval: ST_EXPRESSION_EVALUATOR
+    ctx: ST_CONTEXT
+do
+    create eval.make
+    create ctx.make
+    ctx.set_variable ("x", "10")
+    ctx.set_variable ("y", "3")
+
+    print (eval.evaluate ("x + y", ctx))   -- "13"
+    print (eval.evaluate ("x - y", ctx))   -- "7"
+    print (eval.evaluate ("x * y", ctx))   -- "30"
+    print (eval.evaluate ("x / y", ctx))   -- "3.333..."
+    print (eval.evaluate ("x %% y", ctx))  -- "1" (modulo)
+end
+```
+
+### Filters (Pipe Syntax)
+
+Apply transformations using pipe syntax `value | filter` or `value | filter:arg`:
+
+```eiffel
+local
+    eval: ST_EXPRESSION_EVALUATOR
+    ctx: ST_CONTEXT
+do
+    create eval.make
+    create ctx.make
+    ctx.set_variable ("name", "alice")
+    ctx.set_variable ("text", "  hello world  ")
+
+    -- Single filter
+    print (eval.evaluate ("name | upper", ctx))      -- "ALICE"
+    print (eval.evaluate ("name | capitalize", ctx)) -- "Alice"
+
+    -- Filter with argument
+    print (eval.evaluate ("text | truncate:5", ctx)) -- "hello"
+
+    -- Filter chain
+    print (eval.evaluate ("text | trim | upper", ctx)) -- "HELLO WORLD"
+end
+```
+
+### Built-in Filters
+
+| Filter | Description | Example |
+|--------|-------------|---------|
+| `upper` | Uppercase | `hello` → `HELLO` |
+| `lower` | Lowercase | `HELLO` → `hello` |
+| `capitalize` | Capitalize first | `hello` → `Hello` |
+| `trim` | Strip whitespace | `  hi  ` → `hi` |
+| `length` | String length | `hello` → `5` |
+| `reverse` | Reverse string | `hello` → `olleh` |
+| `default:val` | Default if empty | `""` → `val` |
+| `truncate:N` | Limit to N chars | `hello` → `hel` |
+| `replace:a,b` | Replace a with b | `hello` → `heyyo` |
+| `split:sep` | Split to list | `a,b` → `a b` |
+| `join:sep` | Join with separator | `a b` → `a,b` |
+| `abs` | Absolute value | `-5` → `5` |
+| `round:N` | Round to N decimals | `3.14159` → `3.14` |
+
+### Error Handling
+
+Collect structured errors with location information:
+
+```eiffel
+local
+    collector: ST_ERROR_COLLECTOR
+do
+    create collector.make
+
+    -- Add errors with location
+    collector.add_error_at ("SYNTAX", "Unexpected token", 5, 12, "{{bad")
+    collector.add_missing_variable ("user_name", 10)
+
+    -- Add warnings
+    collector.add_unknown_filter ("foo", 15)
+
+    -- Check status
+    if collector.has_errors then
+        print (collector.to_string)
+        -- Errors (2):
+        --   [SYNTAX] Unexpected token (line 5, column 12)
+        --     --> {{bad
+        --   [MISSING_VAR] Undefined variable: user_name (line 10)
+    end
+
+    -- JSON output for tooling
+    print (collector.to_json)
+end
+```
+
+### Phase 4 Classes
+
+| Class | Purpose |
+|-------|---------|
+| `ST_EXPRESSION_EVALUATOR` | Math and filter evaluation |
+| `ST_FILTER` | Abstract filter base class |
+| `ST_FILTER_*` | 13 built-in filter implementations |
+| `ST_TEMPLATE_ERROR` | Structured error with location |
+| `ST_ERROR_COLLECTOR` | Collects multiple errors/warnings |
 
 ## Use Cases
 

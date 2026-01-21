@@ -616,4 +616,205 @@ feature -- Test: Object Rendering (simple_reflection integration)
 			assert_string_contains ("has age", l_result, "25")
 		end
 
+feature -- Test: Directive Integration
+
+	test_render_with_directives_basic
+			-- Test render_with_directives with basic #if directive.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.render_with_directives"
+		local
+			tpl: SIMPLE_TEMPLATE
+			l_result: STRING
+		do
+			create tpl.make_from_string ("#if show then%NVisible%N#end")
+			tpl.set_variable ("show", "true")
+			l_result := tpl.render_with_directives
+			assert_string_contains ("has visible", l_result, "Visible")
+		end
+
+	test_render_with_directives_combined
+			-- Test render_with_directives combining directives with Mustache.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.render_with_directives"
+		local
+			tpl: SIMPLE_TEMPLATE
+			l_result: STRING
+		do
+			create tpl.make_from_string ("#if active then%NHello {{name}}!%N#end")
+			tpl.set_variable ("active", "yes")
+			tpl.set_variable ("name", "World")
+			l_result := tpl.render_with_directives
+			assert_string_contains ("has greeting", l_result, "Hello World!")
+		end
+
+	test_has_directives
+			-- Test has_directives detection.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.has_directives"
+		local
+			tpl: SIMPLE_TEMPLATE
+		do
+			create tpl.make_from_string ("#if x then y #end")
+			assert_true ("has directive", tpl.has_directives)
+
+			create tpl.make_from_string ("Hello {{name}}")
+			assert_false ("no directive", tpl.has_directives)
+		end
+
+feature -- Test: Compilation (Phase 3)
+
+	test_compile_basic
+			-- Test basic template compilation.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.compile"
+		local
+			tpl: SIMPLE_TEMPLATE
+			compiled: ST_COMPILED_TEMPLATE
+		do
+			create tpl.make_from_string ("Hello, {{name}}!")
+			compiled := tpl.compile
+			assert_true ("compiled not empty", not compiled.is_empty)
+			assert_true ("has nodes", compiled.node_count > 0)
+		end
+
+	test_render_compiled
+			-- Test rendering via compiled template.
+		note
+			testing: "covers/{SIMPLE_TEMPLATE}.render_compiled"
+		local
+			tpl: SIMPLE_TEMPLATE
+			l_result: STRING
+		do
+			create tpl.make_from_string ("Hello, {{name}}!")
+			tpl.set_variable ("name", "World")
+			l_result := tpl.render_compiled
+			assert_strings_equal ("compiled render", "Hello, World!", l_result)
+		end
+
+	test_compiled_escaping
+			-- Test HTML escaping in compiled render.
+		note
+			testing: "covers/{ST_VARIABLE_NODE}.execute"
+		local
+			tpl: SIMPLE_TEMPLATE
+			l_result: STRING
+		do
+			create tpl.make_from_string ("{{content}}")
+			tpl.set_variable ("content", "<script>")
+			l_result := tpl.render_compiled
+			assert_strings_equal ("escaped", "&lt;script&gt;", l_result)
+		end
+
+	test_compiled_raw
+			-- Test raw output in compiled render.
+		note
+			testing: "covers/{ST_VARIABLE_NODE}.execute"
+		local
+			tpl: SIMPLE_TEMPLATE
+			l_result: STRING
+		do
+			create tpl.make_from_string ("{{{content}}}")
+			tpl.set_variable ("content", "<b>bold</b>")
+			l_result := tpl.render_compiled
+			assert_strings_equal ("not escaped", "<b>bold</b>", l_result)
+		end
+
+	test_compiled_sections
+			-- Test sections in compiled render.
+		note
+			testing: "covers/{ST_SECTION_NODE}.execute"
+		local
+			tpl: SIMPLE_TEMPLATE
+			l_result: STRING
+		do
+			create tpl.make_from_string ("{{#show}}Visible{{/show}}")
+			tpl.set_section ("show", True)
+			l_result := tpl.render_compiled
+			assert_strings_equal ("visible", "Visible", l_result)
+
+			tpl.set_section ("show", False)
+			l_result := tpl.render_compiled
+			assert_strings_equal ("hidden", "", l_result)
+		end
+
+	test_compiled_inverted_section
+			-- Test inverted sections in compiled render.
+		note
+			testing: "covers/{ST_SECTION_NODE}.execute"
+		local
+			tpl: SIMPLE_TEMPLATE
+			l_result: STRING
+		do
+			create tpl.make_from_string ("{{^items}}Empty{{/items}}")
+			l_result := tpl.render_compiled
+			assert_strings_equal ("shows when empty", "Empty", l_result)
+		end
+
+	test_template_compiler
+			-- Test ST_TEMPLATE_COMPILER directly.
+		note
+			testing: "covers/{ST_TEMPLATE_COMPILER}.compile"
+		local
+			compiler: ST_TEMPLATE_COMPILER
+			compiled: ST_COMPILED_TEMPLATE
+			ctx: ST_EXECUTION_CONTEXT
+			l_result: STRING
+		do
+			create compiler.make
+			compiled := compiler.compile ("Hello, {{name}}!")
+			assert_false ("no error", compiler.has_error)
+
+			create ctx.make
+			ctx.set_variable ("name", "Test")
+			l_result := compiled.render (ctx)
+			assert_strings_equal ("rendered", "Hello, Test!", l_result)
+		end
+
+	test_template_cache
+			-- Test ST_TEMPLATE_CACHE.
+		note
+			testing: "covers/{ST_TEMPLATE_CACHE}.get_or_compile"
+		local
+			cache: ST_TEMPLATE_CACHE
+			t1, t2: ST_COMPILED_TEMPLATE
+			ctx: ST_EXECUTION_CONTEXT
+		do
+			create cache.make (10)
+			assert_true ("empty", cache.is_empty)
+
+			-- First access - miss
+			t1 := cache.get_or_compile ("key1", "Hello {{x}}")
+			assert_integers_equal ("misses", 1, cache.misses)
+			assert_integers_equal ("hits", 0, cache.hits)
+
+			-- Second access - hit
+			t2 := cache.get_or_compile ("key1", "Hello {{x}}")
+			assert_integers_equal ("hits now 1", 1, cache.hits)
+			assert_true ("same object", t1 = t2)
+
+			-- Render cached template
+			create ctx.make
+			ctx.set_variable ("x", "World")
+			assert_strings_equal ("render", "Hello World", t1.render (ctx))
+		end
+
+	test_cache_eviction
+			-- Test cache eviction when full.
+		note
+			testing: "covers/{ST_TEMPLATE_CACHE}.put"
+		local
+			cache: ST_TEMPLATE_CACHE
+			i: INTEGER
+		do
+			create cache.make (3)
+
+			from i := 1 until i > 5 loop
+				cache.get_or_compile ("key" + i.out, "Template " + i.out).do_nothing
+				i := i + 1
+			end
+
+			-- Should have evicted some entries
+			assert_integers_equal ("at capacity", 3, cache.count)
+		end
+
 end

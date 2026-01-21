@@ -354,6 +354,72 @@ feature -- Rendering (continued)
 			l_file.close
 		end
 
+feature -- Compilation (Phase 3)
+
+	compile: ST_COMPILED_TEMPLATE
+			-- Compile this template into an AST for fast repeated rendering.
+		local
+			l_compiler: ST_TEMPLATE_COMPILER
+		do
+			create l_compiler.make
+			Result := l_compiler.compile (template_source)
+		ensure
+			result_attached: Result /= Void
+		end
+
+	render_compiled: STRING
+			-- Render using pre-compiled template (caches compilation).
+		do
+			if not attached compiled_template then
+				compiled_template := compile
+			end
+			if attached compiled_template as ct then
+				Result := ct.render (create_execution_context)
+			else
+				Result := ""
+			end
+		ensure
+			result_attached: Result /= Void
+		end
+
+feature {NONE} -- Compilation Support
+
+	compiled_template: detachable ST_COMPILED_TEMPLATE
+			-- Cached compiled template (lazy initialization).
+
+	create_execution_context: ST_EXECUTION_CONTEXT
+			-- Create execution context from current state.
+		do
+			create Result.make
+			Result.set_escape_html (escape_html_enabled)
+			Result.set_missing_policy (missing_variable_policy)
+			-- Transfer variables
+			from variables.start until variables.after loop
+				Result.set_variable (variables.key_for_iteration, variables.item_for_iteration)
+				variables.forth
+			end
+			-- Transfer sections
+			from sections.start until sections.after loop
+				Result.set_section (sections.key_for_iteration, sections.item_for_iteration)
+				sections.forth
+			end
+			-- Transfer lists
+			from lists.start until lists.after loop
+				Result.set_list (lists.key_for_iteration, lists.item_for_iteration)
+				lists.forth
+			end
+		ensure
+			result_attached: Result /= Void
+		end
+
+	invalidate_compiled
+			-- Invalidate compiled template (call when source changes).
+		do
+			compiled_template := Void
+		ensure
+			invalidated: compiled_template = Void
+		end
+
 feature -- Query
 
 	has_variable (a_name: STRING): BOOLEAN
@@ -819,6 +885,233 @@ feature {NONE} -- Implementation
 					Result := True
 				end
 			end
+		end
+
+feature -- Directive Rendering (evolicity-style)
+
+	render_with_directives: STRING
+			-- Render template processing both directives (#if, #foreach, etc.) and Mustache syntax.
+			-- This combines evolicity-style directives with standard Mustache rendering.
+		local
+			l_processed: STRING
+		do
+			-- First pass: process directives
+			l_processed := process_directives (template_source)
+			-- Second pass: standard Mustache rendering
+			Result := render_template (l_processed, variables)
+		ensure
+			result_attached: Result /= Void
+		end
+
+	has_directives: BOOLEAN
+			-- Does the template contain any directives?
+		do
+			Result := template_source.has_substring ("#if ") or
+					  template_source.has_substring ("#foreach ") or
+					  template_source.has_substring ("#across ") or
+					  template_source.has_substring ("#include ") or
+					  template_source.has_substring ("#evaluate ")
+		end
+
+feature {NONE} -- Directive Processing
+
+	process_directives (a_text: STRING): STRING
+			-- Process all directives in text and return result.
+		local
+			l_parser: ST_DIRECTIVE_PARSER
+			l_context: ST_CONTEXT
+			l_result: STRING
+			l_pos: INTEGER
+			l_directive_start: INTEGER
+			l_directive_end: INTEGER
+			l_directive_text: STRING
+			l_rendered: STRING
+		do
+			if not has_directives_in (a_text) then
+				Result := a_text
+			else
+				create l_parser.make
+				l_context := create_directive_context
+
+				create l_result.make (a_text.count)
+				l_pos := 1
+
+				from until l_pos > a_text.count loop
+					-- Find next directive
+					l_directive_start := find_next_directive (a_text, l_pos)
+
+					if l_directive_start > 0 then
+						-- Add text before directive
+						if l_directive_start > l_pos then
+							l_result.append (a_text.substring (l_pos, l_directive_start - 1))
+						end
+
+						-- Find and process directive
+						l_directive_end := find_directive_end (a_text, l_directive_start)
+						if l_directive_end > 0 then
+							l_directive_text := a_text.substring (l_directive_start, l_directive_end)
+							l_rendered := execute_directive (l_parser, l_context, l_directive_text)
+							l_result.append (l_rendered)
+							l_pos := l_directive_end + 1
+						else
+							-- Malformed directive, keep as-is
+							l_result.append_character (a_text.item (l_directive_start))
+							l_pos := l_directive_start + 1
+						end
+					else
+						-- No more directives, append rest
+						l_result.append (a_text.substring (l_pos, a_text.count))
+						l_pos := a_text.count + 1
+					end
+				end
+
+				Result := l_result
+			end
+		ensure
+			result_attached: Result /= Void
+		end
+
+	has_directives_in (a_text: STRING): BOOLEAN
+			-- Does text contain any directives?
+		do
+			Result := a_text.has_substring ("#if ") or
+					  a_text.has_substring ("#foreach ") or
+					  a_text.has_substring ("#across ") or
+					  a_text.has_substring ("#include ") or
+					  a_text.has_substring ("#evaluate ")
+		end
+
+	create_directive_context: ST_CONTEXT
+			-- Create directive context from current template state.
+		do
+			create Result.make
+			-- Transfer variables
+			from variables.start until variables.after loop
+				Result.set_variable (variables.key_for_iteration, variables.item_for_iteration)
+				variables.forth
+			end
+			-- Transfer lists
+			from lists.start until lists.after loop
+				Result.set_list (lists.key_for_iteration, lists.item_for_iteration)
+				lists.forth
+			end
+		end
+
+	find_next_directive (a_text: STRING; a_start: INTEGER): INTEGER
+			-- Find position of next directive starting at or after a_start.
+			-- Returns 0 if no directive found.
+		local
+			l_if, l_foreach, l_across, l_include, l_evaluate: INTEGER
+			l_min: INTEGER
+		do
+			l_if := a_text.substring_index ("#if ", a_start)
+			l_foreach := a_text.substring_index ("#foreach ", a_start)
+			l_across := a_text.substring_index ("#across ", a_start)
+			l_include := a_text.substring_index ("#include ", a_start)
+			l_evaluate := a_text.substring_index ("#evaluate ", a_start)
+
+			-- Find minimum non-zero position
+			l_min := 0
+			if l_if > 0 and then (l_min = 0 or l_if < l_min) then l_min := l_if end
+			if l_foreach > 0 and then (l_min = 0 or l_foreach < l_min) then l_min := l_foreach end
+			if l_across > 0 and then (l_min = 0 or l_across < l_min) then l_min := l_across end
+			if l_include > 0 and then (l_min = 0 or l_include < l_min) then l_min := l_include end
+			if l_evaluate > 0 and then (l_min = 0 or l_evaluate < l_min) then l_min := l_evaluate end
+
+			Result := l_min
+		end
+
+	find_directive_end (a_text: STRING; a_start: INTEGER): INTEGER
+			-- Find end position of directive starting at a_start.
+		local
+			l_end_pos: INTEGER
+			l_newline_pos: INTEGER
+		do
+			-- Check which directive type
+			if a_text.substring_index ("#if ", a_start) = a_start or
+			   a_text.substring_index ("#foreach ", a_start) = a_start or
+			   a_text.substring_index ("#across ", a_start) = a_start then
+				-- Block directive - find matching #end
+				l_end_pos := find_matching_directive_end (a_text, a_start)
+				if l_end_pos > 0 then
+					Result := l_end_pos + 3 -- Include "#end"
+				end
+			else
+				-- Line directive (#include, #evaluate) - find end of line
+				l_newline_pos := a_text.index_of ('%N', a_start)
+				if l_newline_pos > 0 then
+					Result := l_newline_pos - 1
+				else
+					Result := a_text.count
+				end
+			end
+		end
+
+	find_matching_directive_end (a_text: STRING; a_start: INTEGER): INTEGER
+			-- Find matching #end for directive starting at a_start.
+		local
+			l_depth: INTEGER
+			l_pos: INTEGER
+		do
+			l_depth := 1
+			l_pos := a_start + 1
+
+			from until l_pos > a_text.count or l_depth = 0 loop
+				if l_pos + 3 <= a_text.count then
+					if a_text.substring (l_pos, l_pos + 3).same_string ("#if ") or
+					   a_text.substring_index ("#foreach ", l_pos) = l_pos or
+					   a_text.substring_index ("#across ", l_pos) = l_pos then
+						l_depth := l_depth + 1
+					end
+					if a_text.substring (l_pos, l_pos + 3).same_string ("#end") then
+						l_depth := l_depth - 1
+						if l_depth = 0 then
+							Result := l_pos
+						end
+					end
+				end
+				l_pos := l_pos + 1
+			end
+		end
+
+	execute_directive (a_parser: ST_DIRECTIVE_PARSER; a_context: ST_CONTEXT; a_text: STRING): STRING
+			-- Execute a single directive and return result.
+		do
+			if a_text.substring_index ("#if ", 1) = 1 then
+				if attached a_parser.parse_if (a_text) as d then
+					Result := d.execute (a_context)
+				else
+					Result := ""
+				end
+			elseif a_text.substring_index ("#foreach ", 1) = 1 then
+				if attached a_parser.parse_foreach (a_text) as d then
+					Result := d.execute (a_context)
+				else
+					Result := ""
+				end
+			elseif a_text.substring_index ("#across ", 1) = 1 then
+				if attached a_parser.parse_across (a_text) as d then
+					Result := d.execute (a_context)
+				else
+					Result := ""
+				end
+			elseif a_text.substring_index ("#include ", 1) = 1 then
+				if attached a_parser.parse_include (a_text) as d then
+					Result := d.execute (a_context)
+				else
+					Result := ""
+				end
+			elseif a_text.substring_index ("#evaluate ", 1) = 1 then
+				if attached a_parser.parse_evaluate (a_text) as d then
+					Result := d.execute (a_context)
+				else
+					Result := ""
+				end
+			else
+				Result := ""
+			end
+		ensure
+			result_attached: Result /= Void
 		end
 
 invariant

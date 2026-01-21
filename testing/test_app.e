@@ -93,11 +93,33 @@ feature {NONE} -- Initialization
 			run_test (agent tests.test_set_variables_from_object, "test_set_variables_from_object")
 			run_test (agent tests.test_render_with_object, "test_render_with_object")
 
+			-- Directive Integration (evolicity-style via SIMPLE_TEMPLATE)
+			run_test (agent tests.test_render_with_directives_basic, "test_render_with_directives_basic")
+			run_test (agent tests.test_render_with_directives_combined, "test_render_with_directives_combined")
+			run_test (agent tests.test_has_directives, "test_has_directives")
+
+			-- Compilation (Phase 3)
+			run_test (agent tests.test_compile_basic, "test_compile_basic")
+			run_test (agent tests.test_render_compiled, "test_render_compiled")
+			run_test (agent tests.test_compiled_escaping, "test_compiled_escaping")
+			run_test (agent tests.test_compiled_raw, "test_compiled_raw")
+			run_test (agent tests.test_compiled_sections, "test_compiled_sections")
+			run_test (agent tests.test_compiled_inverted_section, "test_compiled_inverted_section")
+			run_test (agent tests.test_template_compiler, "test_template_compiler")
+			run_test (agent tests.test_template_cache, "test_template_cache")
+			run_test (agent tests.test_cache_eviction, "test_cache_eviction")
+
 			-- Adversarial Tests
 			run_adversarial_tests
 
 			-- Stress Tests
 			run_stress_tests
+
+			-- Directive Tests (evolicity-style)
+			run_directive_tests
+
+			-- Performance Benchmarks (Phase 4F)
+			run_benchmarks
 
 			print ("%N=============================%N")
 			print ("Results: " + passed.out + " passed, " + failed.out + " failed%N")
@@ -115,6 +137,8 @@ feature {NONE} -- Implementation
 	failed: INTEGER
 	adversarial_tests: ADVERSARIAL_TESTS
 	stress_tests: STRESS_TESTS
+	directive_tests: DIRECTIVE_TESTS
+	benchmarks: PERFORMANCE_BENCHMARKS
 
 	run_adversarial_tests
 			-- Run adversarial test suite.
@@ -131,6 +155,85 @@ feature {NONE} -- Implementation
 		do
 			create stress_tests.make
 			-- Stress tests print their own output, no counter integration
+		end
+
+	run_benchmarks
+			-- Run performance benchmarks.
+		do
+			create benchmarks.make
+			benchmarks.run_all
+		end
+
+	run_directive_tests
+			-- Run directive test suite (evolicity-style directives).
+		do
+			print ("%NDirective Tests (evolicity-style):%N")
+			create directive_tests.make
+
+			-- If Directive Tests
+			run_test (agent directive_tests.test_if_true_condition, "test_if_true_condition")
+			run_test (agent directive_tests.test_if_false_condition, "test_if_false_condition")
+			run_test (agent directive_tests.test_if_else_true, "test_if_else_true")
+			run_test (agent directive_tests.test_if_else_false, "test_if_else_false")
+			run_test (agent directive_tests.test_if_comparison_equal, "test_if_comparison_equal")
+			run_test (agent directive_tests.test_if_comparison_numeric, "test_if_comparison_numeric")
+			run_test (agent directive_tests.test_if_boolean_and, "test_if_boolean_and")
+			run_test (agent directive_tests.test_if_boolean_or, "test_if_boolean_or")
+			run_test (agent directive_tests.test_if_boolean_not, "test_if_boolean_not")
+
+			-- Foreach Directive Tests
+			run_test (agent directive_tests.test_foreach_basic, "test_foreach_basic")
+			run_test (agent directive_tests.test_foreach_with_index, "test_foreach_with_index")
+			run_test (agent directive_tests.test_foreach_empty_list, "test_foreach_empty_list")
+
+			-- Across Directive Tests
+			run_test (agent directive_tests.test_across_basic, "test_across_basic")
+			run_test (agent directive_tests.test_across_with_cursor_index, "test_across_with_cursor_index")
+
+			-- Context Tests
+			run_test (agent directive_tests.test_context_boolean_evaluation, "test_context_boolean_evaluation")
+			run_test (agent directive_tests.test_context_expression_evaluation, "test_context_expression_evaluation")
+
+			-- Parser Error Tests
+			run_test (agent directive_tests.test_parser_missing_then, "test_parser_missing_then")
+			run_test (agent directive_tests.test_parser_missing_end, "test_parser_missing_end")
+			run_test (agent directive_tests.test_parser_has_directive, "test_parser_has_directive")
+
+			-- Include Directive Tests
+			run_test (agent directive_tests.test_include_parse_literal_path, "test_include_parse_literal_path")
+			run_test (agent directive_tests.test_include_parse_variable_path, "test_include_parse_variable_path")
+			run_test (agent directive_tests.test_include_path_traversal_blocked, "test_include_path_traversal_blocked")
+			run_test (agent directive_tests.test_include_absolute_path_blocked, "test_include_absolute_path_blocked")
+
+			-- Evaluate Directive Tests
+			run_test (agent directive_tests.test_evaluate_parse_variable, "test_evaluate_parse_variable")
+			run_test (agent directive_tests.test_evaluate_basic, "test_evaluate_basic")
+			run_test (agent directive_tests.test_evaluate_empty_variable, "test_evaluate_empty_variable")
+			run_test (agent directive_tests.test_evaluate_literal_template, "test_evaluate_literal_template")
+
+			-- Expression Evaluator Tests (Phase 4)
+			print ("%NExpression Evaluator Tests (Phase 4):%N")
+			run_test (agent directive_tests.test_expr_math_add, "test_expr_math_add")
+			run_test (agent directive_tests.test_expr_math_subtract, "test_expr_math_subtract")
+			run_test (agent directive_tests.test_expr_math_multiply, "test_expr_math_multiply")
+			run_test (agent directive_tests.test_expr_math_divide, "test_expr_math_divide")
+
+			-- Filter Tests (Phase 4)
+			print ("%NFilter Tests (Phase 4):%N")
+			run_test (agent directive_tests.test_filter_upper, "test_filter_upper")
+			run_test (agent directive_tests.test_filter_lower, "test_filter_lower")
+			run_test (agent directive_tests.test_filter_capitalize, "test_filter_capitalize")
+			run_test (agent directive_tests.test_filter_length, "test_filter_length")
+			run_test (agent directive_tests.test_filter_default, "test_filter_default")
+			run_test (agent directive_tests.test_filter_truncate, "test_filter_truncate")
+			run_test (agent directive_tests.test_filter_chain, "test_filter_chain")
+			run_test (agent directive_tests.test_filter_reverse, "test_filter_reverse")
+			run_test (agent directive_tests.test_filter_abs, "test_filter_abs")
+
+			-- Error Handling Tests (Phase 4)
+			print ("%NError Handling Tests (Phase 4):%N")
+			run_test (agent directive_tests.test_error_collector_basic, "test_error_collector_basic")
+			run_test (agent directive_tests.test_error_with_location, "test_error_with_location")
 		end
 
 	run_test (a_test: PROCEDURE; a_name: STRING)

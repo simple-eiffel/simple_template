@@ -440,6 +440,122 @@ feature -- Malformed Template Tests
 			print ("  FAIL: test_unclosed_section - exception%N")
 		end
 
+feature -- Directive Adversarial Tests
+
+	test_directive_empty_condition
+			-- Test #if with whitespace-only condition
+		local
+			l_parser: ST_DIRECTIVE_PARSER
+			l_directive: detachable ST_IF_DIRECTIVE
+			l_retried: BOOLEAN
+		do
+			if not l_retried then
+				create l_parser.make
+				l_directive := l_parser.parse_if ("#if   then%Ncontent%N#end")
+				-- Should parse but empty condition should evaluate to false
+				if l_directive = Void then
+					passed := passed + 1
+					print ("  PASS: test_directive_empty_condition - parser rejected empty condition%N")
+				else
+					risk := risk + 1
+					print ("  RISK: test_directive_empty_condition - empty condition accepted%N")
+				end
+			end
+		rescue
+			passed := passed + 1
+			print ("  PASS: test_directive_empty_condition - exception on empty condition%N")
+			l_retried := True
+			retry
+		end
+
+	test_directive_nested_depth
+			-- Test deeply nested #if directives
+		local
+			l_parser: ST_DIRECTIVE_PARSER
+			l_template: STRING
+			l_directive: detachable ST_IF_DIRECTIVE
+			l_context: ST_CONTEXT
+			l_result: STRING
+			i: INTEGER
+			l_retried: BOOLEAN
+		do
+			if not l_retried then
+				create l_parser.make
+				create l_context.make
+
+				-- Build 50 nested #if directives
+				create l_template.make (2000)
+				from i := 1 until i > 50 loop
+					l_template.append ("#if x then%N")
+					i := i + 1
+				end
+				l_template.append ("DEEP")
+				from i := 1 until i > 50 loop
+					l_template.append ("%N#end")
+					i := i + 1
+				end
+
+				l_context.set_variable ("x", True)
+				l_directive := l_parser.parse_if (l_template)
+
+				if attached l_directive as d then
+					l_result := d.execute (l_context)
+					if l_result.has_substring ("DEEP") then
+						passed := passed + 1
+						print ("  PASS: test_directive_nested_depth - 50 levels handled%N")
+					else
+						risk := risk + 1
+						print ("  RISK: test_directive_nested_depth - deep content not rendered%N")
+					end
+				else
+					risk := risk + 1
+					print ("  RISK: test_directive_nested_depth - parse failed%N")
+				end
+			end
+		rescue
+			failed := failed + 1
+			print ("  FAIL: test_directive_nested_depth - exception on deep nesting%N")
+			l_retried := True
+			retry
+		end
+
+	test_directive_special_chars_in_content
+			-- Test directives with special characters in content
+		local
+			l_parser: ST_DIRECTIVE_PARSER
+			l_directive: detachable ST_IF_DIRECTIVE
+			l_context: ST_CONTEXT
+			l_result: STRING
+			l_retried: BOOLEAN
+		do
+			if not l_retried then
+				create l_parser.make
+				create l_context.make
+				l_context.set_variable ("show", True)
+
+				l_directive := l_parser.parse_if ("#if show then%N<script>alert('xss')</script>%N#end")
+
+				if attached l_directive as d then
+					l_result := d.execute (l_context)
+					if l_result.has_substring ("<script>") then
+						risk := risk + 1
+						print ("  RISK: test_directive_special_chars_in_content - script tag passed through%N")
+					else
+						passed := passed + 1
+						print ("  PASS: test_directive_special_chars_in_content - script tag filtered%N")
+					end
+				else
+					failed := failed + 1
+					print ("  FAIL: test_directive_special_chars_in_content - parse failed%N")
+				end
+			end
+		rescue
+			failed := failed + 1
+			print ("  FAIL: test_directive_special_chars_in_content - exception%N")
+			l_retried := True
+			retry
+		end
+
 feature -- Run All
 
 	run_all
@@ -483,6 +599,11 @@ feature -- Run All
 			print ("%N-- Malformed Template Tests --%N")
 			test_unclosed_variable_tag
 			test_unclosed_section
+
+			print ("%N-- Directive Adversarial Tests --%N")
+			test_directive_empty_condition
+			test_directive_nested_depth
+			test_directive_special_chars_in_content
 
 			print ("%N=== Adversarial Summary: " + passed.out + " pass, " + failed.out + " fail, " + risk.out + " risk ===%N")
 		end
