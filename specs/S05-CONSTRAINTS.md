@@ -1,61 +1,49 @@
-# S05: Constraints - simple_template
+# S05-CONSTRAINTS: simple_template
 
-## Date: 2026-01-18
+**BACKWASH** | Date: 2026-01-23
 
-## System-Wide Constraints
+## Technical Constraints
 
-### From Class Invariants
+### Syntax Constraints
+- **Tag Delimiters**: Fixed {{ and }} (not configurable)
+- **Section Closing**: Must match opening name exactly
+- **Nesting**: Unlimited (except partials)
+- **Partial Depth**: Max 100 levels
 
-#### SIMPLE_TEMPLATE
-1. `template_source /= Void` - Template source always exists
-2. `variables /= Void` - Variable table always initialized
-3. `sections /= Void` - Section table always initialized
-4. `lists /= Void` - List table always initialized
-5. `partials /= Void` - Partial registry always initialized
+### Value Constraints
+- **Variables**: String values only (objects via .out)
+- **Sections**: Boolean or list truthiness
+- **Lists**: Array of HASH_TABLE [STRING, STRING]
 
-#### SIMPLE_TEMPLATE_QUICK
-1. `logger /= Void` - Logger always available
+### File Constraints
+- **Path Security**: No "..", no absolute paths in contracts
+- **Encoding**: UTF-8 recommended, BOM handling available
+- **File Size**: Memory-limited (loaded fully)
 
-### Derived Constraints (from implementation)
+## Design Constraints
 
-1. **Variable names must be non-empty strings**
-   - Source: set_variable precondition
-   - Enforced: require clause
+### Logic-less Templates
+- No function calls from templates
+- No arithmetic in basic Mustache
+- Directives available for power users
 
-2. **Section names must be non-empty strings**
-   - Source: set_section precondition
-   - Enforced: require clause
+### Escaping
+- HTML escaping on by default
+- Raw output requires explicit {{{triple}}}
+- No SQL or other escaping modes
 
-3. **Partial names must be non-empty strings**
-   - Source: register_partial precondition
-   - Enforced: require clause
+### Context
+- String-based context (not objects)
+- Object rendering via reflection integration
+- No automatic nested object access
 
-4. **Template strings cannot be Void**
-   - Source: make_from_string precondition
-   - Enforced: require clause
+## Performance Constraints
 
-5. **Policy values must be one of three constants**
-   - Source: set_missing_variable_policy precondition
-   - Enforced: require clause
+### Interpreted Mode
+- Re-parses on each render
+- Good for one-off renders
 
-### Domain Constraints
-
-1. **HTML escaping is ON by default**
-   - Security requirement for XSS prevention
-   - Opt-out via set_escape_html(False) or `{{{raw}}}`
-
-2. **Missing variables default to empty string**
-   - Safe behavior, configurable via policy
-
-3. **Sections are falsy if undefined**
-   - Matches Mustache spec
-
-4. **List items inherit parent context**
-   - Enables nested template usage
-
-### Performance Constraints
-
-- No explicit limits on template size
-- No explicit limits on variable count
-- No explicit limits on nesting depth
-- Stress tests show 10,000+ character handling (from baseline test)
+### Compiled Mode
+- Parses once, executes many
+- Better for repeated renders
+- AST stored in memory

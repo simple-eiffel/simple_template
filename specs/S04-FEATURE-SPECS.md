@@ -1,192 +1,74 @@
-# S04: Feature Specifications - simple_template
+# S04-FEATURE-SPECS: simple_template
 
-## Date: 2026-01-18
+**BACKWASH** | Date: 2026-01-23
 
-## Priority Features
+## SIMPLE_TEMPLATE Features
 
-These features have complex logic requiring detailed specification:
+### Creation
 
----
+| Feature | Signature | Description |
+|---------|-----------|-------------|
+| make | | Create empty template |
+| make_from_string | (template: STRING) | Create from string |
+| make_from_file | (path: STRING) | Create from file |
 
-## FEATURE: SIMPLE_TEMPLATE.render
+### Configuration
 
-### Signature
-```eiffel
-render: STRING
-```
+| Feature | Signature | Description |
+|---------|-----------|-------------|
+| set_escape_html | (enabled: BOOLEAN) | Toggle escaping |
+| set_missing_variable_policy | (policy: INTEGER) | Handle missing vars |
+| register_partial | (name: STRING; tmpl: SIMPLE_TEMPLATE) | Add partial |
 
-### Purpose
-Core rendering function that combines template source with context data to produce output.
+### Context Building
 
-### Behavior
-Delegates to `render_template (template_source, variables)` which:
-1. Scans template character by character
-2. Identifies tag patterns: `{{!`, `{{{`, `{{^`, `{{#`, `{{>`, `{{`
-3. Processes each tag type appropriately
-4. Returns fully substituted output
+| Feature | Signature | Description |
+|---------|-----------|-------------|
+| set_variable | (name, value: STRING) | Set variable |
+| set_variable_any | (name: STRING; value: ANY) | Set from any |
+| set_variables | (table: HASH_TABLE) | Set multiple |
+| set_section | (name: STRING; visible: BOOLEAN) | Set section visibility |
+| set_list | (name: STRING; items: ARRAYED_LIST) | Set list data |
+| clear_variables | | Clear all context |
+| remove_variable | (name: STRING) | Remove single |
 
-### Tag Processing Order (priority)
-1. `{{!...}}` - Comment (skip content)
-2. `{{{...}}}` - Raw output (no escaping)
-3. `{{^...}}` - Inverted section
-4. `{{#...}}` - Normal section
-5. `{{>...}}` - Partial inclusion
-6. `{{...}}` - Variable substitution
+### Rendering
 
-### Code Paths
-- Plain text → append directly
-- Comment → skip to closing `}}`
-- Raw variable → get value, append unescaped
-- Section → check truthiness, render content if true
-- Inverted section → render content if false
-- Partial → render sub-template with current context
-- Variable → get value, escape if enabled, append
+| Feature | Signature | Description |
+|---------|-----------|-------------|
+| render | : STRING | Render template |
+| render_to_file | (path: STRING) | Render to file |
+| render_with_directives | : STRING | Render with directives |
+| render_compiled | : STRING | Render via AST |
 
-### Edge Cases
-- Missing closing `}}` → treat as plain text
-- Empty template → empty output
-- Missing variable → per policy (empty/placeholder/error)
-- Nested sections → recursive rendering
+### Object Integration
 
-### Test Coverage
-- test_render_plain_text
-- test_render_variable
-- test_render_multiple_variables
-- test_html_escape
-- test_raw_unescaped
-- test_section_truthy/falsy
-- test_list_iteration
-- test_comment
-- test_partial
-- test_complex_template
+| Feature | Signature | Description |
+|---------|-----------|-------------|
+| set_variables_from_object | (obj: ANY) | Set from object fields |
+| render_with_object | (obj: ANY): STRING | Render with object |
 
----
+### Compilation
 
-## FEATURE: SIMPLE_TEMPLATE.is_section_truthy
+| Feature | Signature | Description |
+|---------|-----------|-------------|
+| compile | : ST_COMPILED_TEMPLATE | Compile to AST |
 
-### Signature
-```eiffel
-is_section_truthy (a_name: STRING; a_context: HASH_TABLE [STRING, STRING]): BOOLEAN
-```
+### Query
 
-### Purpose
-Determine if a section should be rendered based on its value.
+| Feature | Signature | Description |
+|---------|-----------|-------------|
+| has_variable | (name): BOOLEAN | Check variable |
+| required_variables | : ARRAYED_LIST | List variables in template |
+| has_directives | : BOOLEAN | Has directive syntax |
+| is_valid | : BOOLEAN | No errors |
+| last_error | : detachable STRING | Error message |
 
-### Algorithm
-1. Check explicit sections table first
-2. If not found, check lists table (truthy if non-empty)
-3. If not found, check context variable
-4. If not found, check global variables
-5. Value is truthy if: non-void AND non-empty AND not "false" AND not "0"
+### Constants
 
-### Truthiness Rules
-| Value | Result |
-|-------|--------|
-| explicit True | truthy |
-| explicit False | falsy |
-| non-empty list | truthy |
-| empty list | falsy |
-| missing | falsy |
-| non-empty string | truthy |
-| empty string | falsy |
-| "false" | falsy |
-| "0" | falsy |
-
-### Test Coverage
-- test_section_truthy
-- test_section_falsy
-- test_section_missing_is_falsy
-- test_inverted_section_truthy
-- test_inverted_section_falsy
-- test_empty_list
-
----
-
-## FEATURE: SIMPLE_TEMPLATE.escape_html
-
-### Signature
-```eiffel
-escape_html (a_value: STRING): STRING
-```
-
-### Purpose
-Convert HTML special characters to entities to prevent XSS.
-
-### Escaping Rules
-| Character | Entity |
-|-----------|--------|
-| & | &amp; |
-| < | &lt; |
-| > | &gt; |
-| " | &quot; |
-| ' | &#39; |
-
-### Algorithm
-Iterate through string, replace each special character with its entity.
-
-### Test Coverage
-- test_html_escape
-- test_html_escape_ampersand
-- test_html_escape_quotes
-
----
-
-## FEATURE: SIMPLE_TEMPLATE.get_variable
-
-### Signature
-```eiffel
-get_variable (a_name: STRING; a_context: HASH_TABLE [STRING, STRING]): STRING
-```
-
-### Purpose
-Retrieve variable value with context lookup and missing variable handling.
-
-### Algorithm
-1. Check context parameter first
-2. If not found, check global variables table
-3. If still not found, apply missing_variable_policy:
-   - Policy_empty_string: return ""
-   - Policy_keep_placeholder: return "{{name}}"
-   - Policy_raise_exception: set last_error, return ""
-
-### Test Coverage
-- test_render_variable
-- test_missing_variable_empty
-- test_missing_variable_placeholder
-
----
-
-## FEATURE: SIMPLE_TEMPLATE.render_section
-
-### Signature
-```eiffel
-render_section (a_name: STRING; a_content: STRING; a_context: HASH_TABLE [STRING, STRING]): STRING
-```
-
-### Purpose
-Render a section block, handling both conditional and list iteration.
-
-### Algorithm
-1. Check if name is a list
-2. If list: iterate, merge each item's context with parent, render content
-3. If not list: check truthiness, render once if truthy
-
-### Context Merging
-List items inherit parent context values. Item values override parent values for same key.
-
-### Test Coverage
-- test_section_truthy/falsy
-- test_list_iteration
-- test_empty_list
-- test_nested_sections
-
----
-
-## Untested Aspects Identified
-
-1. `make_from_file` with non-existent file
-2. Deeply nested sections (>3 levels)
-3. Partial with missing partial name
-4. Variable with very long name
-5. Template with unbalanced section tags
-6. Concurrent access (SCOOP scenarios)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| Policy_empty_string | 1 | Missing = "" |
+| Policy_raise_exception | 2 | Missing = error |
+| Policy_keep_placeholder | 3 | Missing = {{name}} |
+| Max_partial_depth | 100 | Recursion limit |
