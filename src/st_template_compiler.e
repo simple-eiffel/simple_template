@@ -81,7 +81,7 @@ feature {NONE} -- Parsing
 		require
 			source_attached: a_source /= Void
 		local
-			pos, tag_start, tag_end: INTEGER
+			pos, tag_end: INTEGER
 			tag_content, var_name, section_name: STRING
 			section_end_tag: STRING
 			section_end_pos: INTEGER

@@ -512,8 +512,6 @@ feature {NONE} -- Implementation
 		local
 			l_i, l_j, l_k: INTEGER
 			l_source: STRING
-			l_tag_start, l_tag_end: INTEGER
-			l_tag_content: STRING
 			l_var_name: STRING
 			l_value: STRING
 			l_section_name: STRING
