@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Compiler warning cleanup (removed unused locals in `SIMPLE_TEMPLATE` and `ST_TEMPLATE_COMPILER`).
+
 ### Added
 - **Phase 4: Expression Engine and Filters**
   - `ST_EXPRESSION_EVALUATOR` - Math expressions and filter application
