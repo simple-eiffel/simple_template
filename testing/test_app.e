@@ -142,6 +142,7 @@ feature {NONE} -- Initialization
 			-- Performance Benchmarks (Phase 4F)
 			run_benchmarks
 
+			run_autotest_sets
 			print ("%N=============================%N")
 			print ("Results: " + passed.out + " passed, " + failed.out + " failed%N")
 
@@ -150,6 +151,18 @@ feature {NONE} -- Initialization
 			else
 				print ("ALL TESTS PASSED%N")
 			end
+		end
+
+	run_autotest_sets
+			-- The tests in the AutoTest sets no runner here called (port-coordination #17),
+			-- through AutoTest's evaluator.
+		local
+			l_sets: AUTOTEST_SETS_RUNNER
+		do
+			create l_sets
+			l_sets.run_all
+			passed := passed + l_sets.passed
+			failed := failed + l_sets.failed
 		end
 
 feature {NONE} -- Implementation
